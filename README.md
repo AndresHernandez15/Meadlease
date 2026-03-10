@@ -2,7 +2,7 @@
 
 > **Universidad Tecnológica de Bolívar** · Ingeniería Mecatrónica · Proyecto de Grado 2026
 
-Meadlease es un robot asistente domiciliario inspirado en Baymax, diseñado para apoyar el cuidado autónomo de personas en casa. Integra navegación autónoma, dispensación de medicamentos, monitoreo de signos vitales e interacción conversacional en español.
+Meadlease es un robot asistente domiciliario, diseñado para apoyar el cuidado autónomo de personas en casa. Integra navegación autónoma, dispensación de medicamentos, monitoreo de signos vitales e interacción conversacional en español.
 
 ---
 
