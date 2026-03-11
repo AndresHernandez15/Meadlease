@@ -137,13 +137,11 @@ PORCUPINE_ACCESS_KEY=...
 ## 4. ESTRUCTURA DEL PROYECTO
 
 ```
-robot_project/
+atlas/                                    # Módulo conversacional (Meadlease/atlas/)
 ├── README.md
 ├── requirements.txt
-├── Documentacion/
-│   ├── DOCUMENTACION_CONVERSACIONAL.md   <- Este archivo
-│   ├── DOCUMENTACION_ROS2.md
-│   └── PROYECTO_GENERAL.md
+├── .env                                  <- API keys (local, nunca al repo)
+├── .env.example                          <- Plantilla pública
 ├── data/
 │   ├── patient.db                        <- Base de datos SQLite
 │   └── audio/
@@ -488,7 +486,7 @@ Regenerar con: `python scripts/generate_confirmation_audio.py`
 ### Arrancar el sistema completo
 
 ```bash
-cd robot_project
+cd Meadlease/atlas
 python baymax_voice/main.py
 # Di "atlas" para activar, luego habla directamente
 ```

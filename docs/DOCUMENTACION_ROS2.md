@@ -1,9 +1,10 @@
 # DOCUMENTACIÓN TÉCNICA ROS2
 ## Robot Asistente Médico Domiciliario Meadlese
 
-> **Audiencia:** Andrés (líder software), Juan (apoyo)  
-> **Framework:** ROS2 Humble Hawksbill  
-> **Sistema:** Ubuntu Desktop 22.04.5 LTS — Dell Inspiron 3421  
+> **Audiencia:** Andrés (líder software), Juan (apoyo visión)
+> **Estado:** Kinect ✅ · SLAM ⏳ · Nav2 ❌ · Nodos médicos ❌ · Atlas-ROS2 ❌
+> **Plataforma:** Ubuntu 22.04.5 LTS · ROS2 Humble Hawksbill · Python 3.10
+> **Hardware:** Dell Inspiron 3421 · i3-3227U · 12 GB RAM
 > **Última actualización:** 2026-03-10
 
 ---
@@ -15,12 +16,13 @@
 3. [Kinect V2 en ROS2](#3-kinect-v2-en-ros2)
 4. [SLAM con RTAB-Map](#4-slam-con-rtab-map)
 5. [Navegación con Nav2](#5-navegación-con-nav2)
-6. [Arquitectura de Nodos (Target)](#6-arquitectura-de-nodos-target)
+6. [Arquitectura de Nodos Target](#6-arquitectura-de-nodos-target)
 7. [Topics, Services y Actions](#7-topics-services-y-actions)
 8. [TF Tree](#8-tf-tree)
 9. [Comunicación con Microcontroladores](#9-comunicación-con-microcontroladores)
-10. [Problemas Conocidos y Soluciones](#10-problemas-conocidos-y-soluciones)
-11. [Comandos de Referencia Rápida](#11-comandos-de-referencia-rápida)
+10. [Estado Actual y Pendientes](#10-estado-actual-y-pendientes)
+11. [Problemas Conocidos y Soluciones](#11-problemas-conocidos-y-soluciones)
+12. [Comandos de Referencia Rápida](#12-comandos-de-referencia-rápida)
 
 ---
 
@@ -33,21 +35,20 @@
 Ubuntu Desktop 22.04.5 LTS (Jammy Jellyfish)
 ROS2 Humble Hawksbill (LTS, soporte hasta 2027)
 Python 3.10 (default Ubuntu 22.04)
-Build System: colcon
+Build system: colcon
 
 # Paquetes ROS2
 ros-humble-desktop              # Core + RViz2 + rqt
 ros-humble-navigation2          # Nav2 stack completo
-ros-humble-slam-toolbox         # SLAM (no se usa, Kinect es RGB-D)
 ros-humble-robot-localization
 ros-humble-teleop-twist-keyboard
 
 # SLAM RGB-D
-rtabmap-ros                     # SLAM 3D nativo para Kinect
+rtabmap-ros                     # SLAM 3D nativo para Kinect (no slam-toolbox)
 
 # Driver Kinect V2
 kinect2_bridge                  # krepa098/kinect2_ros2 (compilado desde source)
-libfreenect2                    # Compilado desde source
+libfreenect2                    # Compilado desde source con soporte OpenCL
 
 # Herramientas
 ros-humble-rqt*
@@ -70,7 +71,7 @@ export ROS_LOCALHOST_ONLY=1
 Usuario Ubuntu:  robot
 Hostname:        robot-brain
 Workspace:       ~/Meadlease/ros2_ws
-Kinect Serial:   204763633847 / 299150235147
+Kinect Serials:  204763633847 · 299150235147
 ```
 
 ---
@@ -88,24 +89,27 @@ Kinect Serial:   204763633847 / 299150235147
 │   │   │   ├── slam_simulation.launch.py
 │   │   │   └── navigation_simulation.launch.py
 │   │   ├── config/                  # YAML configs (en desarrollo)
-│   │   ├── maps/                    # Mapas guardados
-│   │   │   ├── mi_primer_mapa.pgm
+│   │   ├── maps/
+│   │   │   ├── mi_primer_mapa.pgm   # Mapa de prueba (no es el entorno real)
 │   │   │   └── mi_primer_mapa.yaml
-│   │   └── robot_medical/           # Nodos Python (en desarrollo)
+│   │   └── robot_medical/           # Nodos Python
+│   │       ├── __init__.py
+│   │       ├── kinect_node.py       # Suscriptor de prueba del Kinect
+│   │       └── kinect_mic_test.py   # Test de audio con Kinect
 │   │
 │   ├── kinect2_ros2/                # Driver Kinect V2
 │   │   ├── kinect2_bridge/
 │   │   ├── kinect2_calibration/
 │   │   └── kinect2_registration/
 │   │
-│   └── mi_robot/                    # Paquete pruebas iniciales (legacy)
+│   └── mi_robot/                    # Paquete legacy (pruebas iniciales)
 │
-├── build/                           # Archivos compilación (ignorar)
-├── install/                         # Ejecutables (ignorar)
-└── log/                             # Logs ROS2 (ignorar)
+├── build/                           # Archivos compilación — ignorar en git
+├── install/                         # Ejecutables — ignorar en git
+└── log/                             # Logs ROS2 — ignorar en git
 ```
 
-### Estructura Target (Paquete robot_medical)
+### Estructura Target del Paquete `robot_medical`
 
 ```
 robot_medical/
@@ -114,28 +118,25 @@ robot_medical/
 │   ├── slam.launch.py                 # Solo SLAM
 │   ├── navigation.launch.py           # Nav2 con mapa existente
 │   ├── perception.launch.py           # Visión artificial
-│   └── medical.launch.py              # Signos vitales + dispensador
+│   └── medical.launch.py             # Signos vitales + dispensador
 ├── config/
 │   ├── rtabmap_params.yaml            # Parámetros RTAB-Map optimizados
 │   ├── nav2_params.yaml               # Parámetros Nav2
 │   ├── robot_description.urdf         # Descripción URDF del robot
 │   └── sensors.yaml                   # Configuración sensores
 ├── maps/
-│   └── [mapas del apartamento]
-├── robot_medical/                     # Módulos Python
-│   ├── __init__.py
-│   ├── esp32_bridge_node.py           # /cmd_vel → Serial → ESP32 → Motores
-│   ├── ultrasonic_node.py             # Lectura sensores obstáculos
-│   ├── vital_signs_node.py            # Signos vitales desde ESP32
-│   ├── medication_node.py             # Control dispensador
-│   ├── person_detector_node.py        # Detección de personas
-│   ├── face_recognition_node.py       # Reconocimiento facial
-│   ├── state_machine_node.py          # Coordinador central
-│   ├── scheduler_node.py              # Horarios medicamentos
-│   └── atlas_ros2_node.py             # Bridge Atlas conversacional → ROS2
-├── package.xml
-├── setup.py
-└── CMakeLists.txt
+│   └── [mapa real del apartamento]
+└── robot_medical/                     # Módulos Python
+    ├── __init__.py
+    ├── stm32_bridge_node.py           # /cmd_vel → Serial → STM32 → Motores
+    ├── ultrasonic_node.py             # Lectura sensores obstáculos
+    ├── vital_signs_node.py            # Signos vitales desde ESP32
+    ├── medication_node.py             # Control dispensador
+    ├── person_detector_node.py        # Detección de personas (Kinect)
+    ├── face_recognition_node.py       # Reconocimiento facial
+    ├── state_machine_node.py          # Coordinador central
+    ├── scheduler_node.py              # Horarios medicamentos
+    └── atlas_ros2_node.py             # Bridge Atlas conversacional → ROS2
 ```
 
 ### Comandos de Build
@@ -146,7 +147,7 @@ cd ~/Meadlease/ros2_ws
 colcon build --packages-select robot_medical
 source install/setup.bash
 
-# Compilar paquetes propios (más rápido)
+# Compilar paquetes propios (más rápido, recomendado en desarrollo)
 colcon build --symlink-install \
   --packages-select robot_medical mi_robot \
               kinect2_registration kinect2_bridge
@@ -158,9 +159,6 @@ source install/setup.bash
 # Limpiar y recompilar desde cero
 rm -rf build/ install/ log/
 colcon build --symlink-install
-
-# Ver estructura del workspace
-tree ~/Meadlease/ros2_ws/src -L 2
 ```
 
 ---
@@ -174,20 +172,20 @@ El driver `kinect2_bridge` está compilado y estable. El Kinect publica correcta
 ### Topics Disponibles
 
 ```bash
-# Imágenes QHD (alta resolución - pesado)
-/kinect2/qhd/image_color_rect          # RGB rectificada (sensor_msgs/Image)
+# Imágenes QHD — alta resolución, uso pesado
+/kinect2/qhd/image_color_rect          # RGB rectificada  (sensor_msgs/Image)
 /kinect2/qhd/image_depth_rect          # Depth rectificada (sensor_msgs/Image)
 /kinect2/qhd/camera_info               # Parámetros cámara
 
-# Imágenes SD (baja resolución - optimizado para procesamiento)
+# Imágenes SD — baja resolución, recomendada para procesamiento
 /kinect2/sd/image_color_rect           # RGB SD
 /kinect2/sd/image_depth_rect           # Depth SD
 /kinect2/sd/camera_info
 
-# PointCloud (muy pesado, usar con filtros)
-/kinect2/sd/points                     # PointCloud2
+# PointCloud — muy pesado, usar siempre con filtros
+/kinect2/sd/points                     # sensor_msgs/PointCloud2
 
-# Frame principal
+# Frame de referencia principal
 kinect2_rgb_optical_frame
 ```
 
@@ -197,12 +195,11 @@ kinect2_rgb_optical_frame
 ros2 launch kinect2_bridge kinect2_bridge_launch.yaml
 ```
 
-### QoS Importante
+### QoS — Importante
 
-El Kinect publica con QoS **Best Effort**. Al suscribirse desde otros nodos o desde RViz, se debe configurar la misma política:
+El Kinect publica con QoS **Best Effort**. Al suscribirse desde nodos Python o desde RViz, se debe configurar la misma política:
 
 ```python
-# En Python (rclpy)
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 
 qos = QoSProfile(
@@ -210,20 +207,20 @@ qos = QoSProfile(
     history=HistoryPolicy.KEEP_LAST,
     depth=1
 )
-subscription = self.create_subscription(Image, '/kinect2/sd/image_color_rect', callback, qos)
+self.create_subscription(Image, '/kinect2/sd/image_color_rect', callback, qos)
 ```
 
 ```bash
-# En RViz: PointCloud2 settings → Reliability Policy: Best Effort
+# En RViz: PointCloud2 → Reliability Policy → Best Effort
 ```
 
 ### Verificación
 
 ```bash
-# Verificar que el Kinect está conectado
+# Verificar que el Kinect está conectado por USB
 lsusb | grep Xbox
 
-# Test directo (requiere estar físicamente en el PC, no SSH)
+# Test raw (ejecutar en la terminal física del Dell, no por SSH)
 ~/libfreenect2/build/bin/Protonect
 
 # Ver topics activos
@@ -240,16 +237,16 @@ ros2 topic hz /kinect2/sd/points
 
 ### Estado: ⏳ Funcionando, en optimización
 
-RTAB-Map está generando mapas correctamente con el Kinect. La tasa de procesamiento (~0.2 Hz inicial) fue mejorada aplicando los parámetros optimizados.
+RTAB-Map genera mapas correctamente con el Kinect. La tasa inicial de procesamiento (~0.2 Hz) fue mejorada significativamente con los parámetros optimizados documentados abajo.
 
-### Por qué RTAB-Map y no SLAM Toolbox
+### Por Qué RTAB-Map y No SLAM Toolbox
 
 | Criterio | SLAM Toolbox | RTAB-Map |
 |----------|-------------|----------|
 | Sensor diseñado para | LIDAR 2D | RGB-D (Kinect) |
-| Con Kinect | Requiere conversión PointCloud→LaserScan (hack costoso) | Nativo |
+| Con Kinect | Requiere conversión PointCloud → LaserScan (costoso) | Nativo |
 | Resultado | Mapa 2D solamente | Mapa 3D + OccupancyGrid 2D para Nav2 |
-| CPU usage | Más bajo | Mayor, pero más eficiente para nuestro sensor |
+| CPU con hardware limitado | Más bajo | Mayor, pero más eficiente para nuestro sensor |
 | **Decisión** | ❌ | ✅ |
 
 ### Parámetros Optimizados (Producción)
@@ -272,23 +269,24 @@ ros2 launch rtabmap_launch rtabmap.launch.py \
     --Grid/RangeMax=2.5"
 ```
 
-> **Nota:** Se usan topics `sd` (baja resolución) en lugar de `qhd` para reducir carga computacional. Con hardware limitado (i3, 12GB RAM), esto es esencial.
+> **Nota:** Se usan topics `sd` (baja resolución) en lugar de `qhd` para reducir carga computacional. Con el hardware disponible (i3, 12 GB RAM) esto es crítico para mantener fluidez.
 
 ### Parámetros Clave Explicados
 
 | Parámetro | Valor | Razón |
 |-----------|-------|-------|
-| `Rtabmap/DetectionRate` | 3.0 Hz | Limita cuántos frames procesa (no todos los 30fps del Kinect) |
+| `Rtabmap/DetectionRate` | 3.0 Hz | Limita cuántos frames procesa (no los 30fps del Kinect) |
 | `Kp/MaxFeatures` | 100 | Reduce puntos clave por frame → menos CPU |
-| `Mem/ImagePostDecimation` | 4 | Reduce resolución interna 4x → menos RAM |
-| `Grid/RangeMax` | 2.5m | Ignora lo que está a más de 2.5m → menos procesamiento |
+| `Mem/ImagePostDecimation` | 4 | Reduce resolución interna 4× → menos RAM |
+| `Grid/RangeMax` | 2.5 m | Ignora lo que está a más de 2.5 m → menos procesamiento |
 | `qos:=2` | Best Effort | Debe coincidir con QoS del Kinect |
 
 ### Guardar un Mapa
 
 ```bash
 # Durante el mapeo, guardar en formato compatible con Nav2
-ros2 run nav2_map_server map_saver_cli -f ~/Meadlease/ros2_ws/src/robot_medical/maps/apartamento
+ros2 run nav2_map_server map_saver_cli \
+  -f ~/Meadlease/ros2_ws/src/robot_medical/maps/apartamento
 
 # Genera:
 # apartamento.pgm    → imagen del mapa (blanco=libre, negro=ocupado, gris=desconocido)
@@ -298,73 +296,68 @@ ros2 run nav2_map_server map_saver_cli -f ~/Meadlease/ros2_ws/src/robot_medical/
 ### Diagnóstico RTAB-Map
 
 ```bash
-# Ver estado en tiempo real
+# Estado en tiempo real
 ros2 topic echo /rtabmap/info
 
-# Ver mapa en RViz
-# Abrir RViz → Add → /map (nav_msgs/OccupancyGrid)
+# Visualizar mapa en RViz: Add → /map (nav_msgs/OccupancyGrid)
 
 # Monitor de recursos durante mapeo
-htop
-# Buscar proceso "rtabmap" → verificar RAM y CPU
+htop   # Buscar proceso "rtabmap" → verificar CPU y RAM (esperado ~3-4 GB)
 ```
 
 ---
 
 ## 5. NAVEGACIÓN CON NAV2
 
-### Estado: ❌ Pendiente pruebas en robot físico
+### Estado: ❌ Pendiente — espera robot físico armado
 
-Nav2 fue probado exitosamente en simulación con TurtleBot3 en Gazebo. Pendiente configuración y prueba en el robot real cuando esté armado.
+Nav2 fue probado exitosamente en simulación con TurtleBot3 en Gazebo. Pendiente configuración y prueba en el robot real.
 
 ### Arquitectura Nav2
 
 ```
-[Mapa guardado] → [map_server] → /map
-[Kinect/RTAB-Map] → Localización (AMCL o rtabmap_localization) → /odom → /map
-[Usuario/Estado Machine] → /goal_pose
-Nav2 → /cmd_vel → [esp32_bridge_node] → ESP32 → Motores
+[Mapa guardado] ──→ [map_server] ──→ /map
+[Kinect + RTAB-Map] ──→ Localización (AMCL o rtabmap_loc) ──→ /odom → /map
+[state_machine_node] ──→ /goal_pose
+Nav2 ──→ /cmd_vel ──→ [esp32_bridge_node] ──→ STM32 ──→ ESP32 ──→ Motores
 ```
 
-### Parámetros Clave a Configurar (nav2_params.yaml)
+### Parámetros Clave a Configurar (`nav2_params.yaml`)
 
 ```yaml
-# Velocidades (seguridad = prioridad)
 controller_server:
   ros__parameters:
-    max_vel_x: 0.25         # Máximo 0.25 m/s (seguridad)
+    max_vel_x: 0.25         # Velocidad máxima 0.25 m/s (restricción de seguridad)
     min_vel_x: -0.1
     max_vel_theta: 0.5
     min_speed_xy: 0.0
 
-# Footprint del robot (40cm x 50cm)
 local_costmap:
   ros__parameters:
-    robot_radius: 0.30      # Radio conservador para navegación segura
+    robot_radius: 0.30      # Radio conservador (base de 55 × 60 cm)
 
-# Inflation para obstáculos
-inflation_radius: 0.35      # Margen alrededor de obstáculos
+inflation_radius: 0.35      # Margen de seguridad alrededor de obstáculos
 ```
 
-### Mapa del Apartamento (Pendiente)
+### Mapa del Entorno Real
 
-El mapa real del apartamento de prueba está pendiente de ser generado cuando el robot esté físicamente armado. Los mapas de prueba actuales (`mi_primer_mapa.pgm/yaml`) se encuentran en `~/Meadlease/ros2_ws/src/robot_medical/maps/` pero no representan el entorno real de despliegue.
+El mapa real del apartamento de prueba está pendiente de generarse cuando el robot esté físicamente armado. Los mapas actuales en `maps/` son de prueba y no representan el entorno real de despliegue.
 
 ---
 
-## 6. ARQUITECTURA DE NODOS (TARGET)
+## 6. ARQUITECTURA DE NODOS TARGET
 
 ### Diagrama de Capas
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                  CAPA HMI / USUARIO                  │
-│   [atlas_ros2_node]  [hmi_node]  [scheduler_node]    │
-└─────────────────────────┬───────────────────────────┘
-                          │
-┌─────────────────────────▼───────────────────────────┐
-│               CAPA DE DECISIÓN                       │
-│              [state_machine_node]                     │
+│                CAPA HMI / USUARIO                   │
+│  [atlas_ros2_node]  [hmi_node]  [scheduler_node]    │
+└─────────────────────┬───────────────────────────────┘
+                      │
+┌─────────────────────▼───────────────────────────────┐
+│               CAPA DE DECISIÓN                      │
+│              [state_machine_node]                   │
 └──────┬──────────┬──────────┬────────────┬───────────┘
        │          │          │            │
 ┌──────▼──┐  ┌───▼────┐ ┌───▼────┐ ┌────▼──────┐
@@ -375,62 +368,81 @@ El mapa real del apartamento de prueba está pendiente de ser generado cuando el
 └──────┬───┘  └───┬────┘ └───┬────┘ └───────────┘
        │          │          │
 ┌──────▼──────────▼──────────▼────────────────────────┐
-│                  CAPA ACTUACIÓN                       │
-│  [esp32_bridge_node]     [esp32_medical_node]         │
-│  /cmd_vel→Serial→Motores  Serial→Dispensador+Sensores │
+│                  CAPA ACTUACIÓN                     │
+│  [esp32_bridge_node]       [esp32_medical_node]     │
+│  /cmd_vel → Serial → Motores  Serial → Dispensador  │
 └─────────────────────────────────────────────────────┘
 ```
 
 ### Nodos Detallados
 
-#### esp32_bridge_node (Próximo a implementar ⚡)
+#### `esp32_bridge_node.py` — Próximo a implementar ⚡
 
 ```python
 # Función: Convierte /cmd_vel (Twist) a comandos Serial para ESP32
 # Input:  /cmd_vel (geometry_msgs/Twist)
-# Output: Puerto serial USB → ESP32 S3 → Drivers ZS-X11H → Motores BLDC
+# Output: Puerto serial USB → STM32 → UART → ESP32 S3 → Drivers ZS-X11H → Motores BLDC
 
 # Cinemática diferencial:
-# wheel_base = 0.40m (ancho de la base)
+# wheel_base = 0.40 m
 # v_left  = linear.x - angular.z * (wheel_base / 2)
 # v_right = linear.x + angular.z * (wheel_base / 2)
+#
+# Protocolo serial propuesto:
+# "VL:{vel_izq:.3f},VR:{vel_der:.3f}\n"   baud: 115200
 
-# Protocolo serial (TBD, propuesta):
-# Formato: "VL:{velocidad_izq},VR:{velocidad_der}\n"
-# Baud rate: 115200
+import rclpy
+from rclpy.node import Node
+from geometry_msgs.msg import Twist
+import serial
+
+class ESP32BridgeNode(Node):
+    def __init__(self):
+        super().__init__('esp32_bridge_node')
+        self.wheel_base = 0.40
+        self.ser = serial.Serial('/dev/ttyUSB0', 115200, timeout=1)
+        self.create_subscription(Twist, '/cmd_vel', self.cmd_vel_callback, 10)
+
+    def cmd_vel_callback(self, msg):
+        v_l = msg.linear.x - msg.angular.z * (self.wheel_base / 2)
+        v_r = msg.linear.x + msg.angular.z * (self.wheel_base / 2)
+        self.ser.write(f"VL:{v_l:.3f},VR:{v_r:.3f}\n".encode())
 ```
 
-#### state_machine_node
+#### `state_machine_node.py` — Estados del robot
 
 ```
-Estados:
-├── IDLE         → Robot en espera, escuchando wake word "Atlas"
-├── SEARCHING    → Buscando al usuario (navegación + visión)
-├── APPROACHING  → Aproximándose al usuario detectado
-├── IDENTIFIED   → Usuario reconocido (cara verificada)
-├── DISPENSING   → Ejecutando dispensación de medicamento
-├── MEASURING    → Midiendo signos vitales
-├── CONVERSING   → En conversación activa con Atlas
-└── ERROR        → Error, requiere intervención
+IDLE         → Robot en espera, escuchando wake word "Atlas"
+SEARCHING    → Buscando al usuario (navegación + visión)
+APPROACHING  → Aproximándose al usuario detectado
+IDENTIFIED   → Usuario reconocido (cara verificada)
+DISPENSING   → Ejecutando dispensación de medicamento
+MEASURING    → Midiendo signos vitales
+CONVERSING   → En conversación activa con Atlas
+ERROR        → Error, requiere intervención
 ```
+
+#### `atlas_ros2_node.py` — Bridge conversacional
+
+Encapsula el sistema Atlas existente como nodo ROS2. Ver sección 11 de `DOCUMENTACION_CONVERSACIONAL.md` para la interfaz completa de topics y services.
 
 ---
 
 ## 7. TOPICS, SERVICES Y ACTIONS
 
-### Topics de Entrada (Sensores)
+### Sensores (Entrada)
 
 ```bash
-# Kinect
+# Kinect V2
 /kinect2/qhd/image_color_rect     # sensor_msgs/Image
 /kinect2/qhd/image_depth_rect     # sensor_msgs/Image
 /kinect2/qhd/camera_info          # sensor_msgs/CameraInfo
 /kinect2/sd/points                # sensor_msgs/PointCloud2
 
-# Odometría (pendiente)
+# Odometría (pendiente — desde STM32 + encoders Hall)
 /odom                             # nav_msgs/Odometry
 
-# Sensores obstáculos (pendiente - desde ESP32)
+# Sensores de obstáculos (pendiente — desde ESP32 Movilidad)
 /ultrasonic/front                 # std_msgs/Float32 (cm)
 /ultrasonic/rear                  # std_msgs/Float32 (cm)
 /ultrasonic/left                  # std_msgs/Float32 (cm)
@@ -438,13 +450,13 @@ Estados:
 /anticaida/front_left             # std_msgs/Bool
 /anticaida/front_right            # std_msgs/Bool
 
-# Signos vitales (pendiente - desde ESP32)
+# Signos vitales (pendiente — desde ESP32 Médica)
 /health/bpm                       # std_msgs/Int32
 /health/spo2                      # std_msgs/Int32
 /health/temperature               # std_msgs/Float32
 ```
 
-### Topics de Control (Salida)
+### Control y Actuación (Salida)
 
 ```bash
 # Movilidad
@@ -453,12 +465,13 @@ Estados:
 # Dispensador
 /dispense_medication              # std_msgs/String (nombre medicamento)
 
-# Conversacional
-/robot/speak                      # std_msgs/String (texto para Atlas)
-/robot/listening                  # std_msgs/Bool (Atlas escuchando?)
+# Sistema conversacional
+/robot/speak                      # std_msgs/String  (TTS proactivo del robot)
+/atlas/listening                  # std_msgs/Bool    (Atlas en escucha activa)
+/atlas/detected_command           # std_msgs/String  (comando local detectado)
 ```
 
-### Topics de Navegación
+### Navegación
 
 ```bash
 /map                              # nav_msgs/OccupancyGrid
@@ -466,13 +479,13 @@ Estados:
 /rtabmap/info                     # rtabmap_ros/Info
 ```
 
-### Topics de Percepción (Target)
+### Percepción (Target)
 
 ```bash
 /person/detected                  # std_msgs/Bool
 /person/position                  # geometry_msgs/Point
-/patient/identified               # std_msgs/String (nombre del usuario)
-/patient/confidence               # std_msgs/Float32 (confianza reconocimiento)
+/patient/identified               # std_msgs/String  (nombre del usuario)
+/patient/confidence               # std_msgs/Float32 (confianza del reconocimiento)
 ```
 
 ---
@@ -482,12 +495,12 @@ Estados:
 ### Estado Actual
 
 ```
-kinect2_rgb_optical_frame    ✅ (publicado por kinect2_bridge)
-kinect2_ir_optical_frame     ✅ (publicado por kinect2_bridge)
-base_link                    ❌ PENDIENTE (necesita URDF del robot)
-kinect_link                  ❌ PENDIENTE (posición exacta Kinect en robot)
-odom                         ❌ PENDIENTE (necesita odometría ESP32)
-map                          ⏳ (publicado por RTAB-Map cuando está activo)
+kinect2_rgb_optical_frame    ✅  publicado por kinect2_bridge
+kinect2_ir_optical_frame     ✅  publicado por kinect2_bridge
+map                          ⏳  publicado por RTAB-Map (cuando está activo)
+base_link                    ❌  pendiente — requiere URDF del robot
+kinect_link                  ❌  pendiente — requiere medición física en robot armado
+odom                         ❌  pendiente — requiere odometría desde ESP32 + encoders
 ```
 
 ### TF Tree Target (Completo)
@@ -495,41 +508,40 @@ map                          ⏳ (publicado por RTAB-Map cuando está activo)
 ```
 map
  └─ odom
-     └─ base_link  (centro geométrico del robot, a nivel del suelo)
-         ├─ kinect_link  (posición física del Kinect en el robot)
+     └─ base_link           (centro geométrico del robot, a nivel del suelo)
+         ├─ kinect_link      (posición física del Kinect en el robot — medir al armar)
          │   ├─ kinect2_rgb_optical_frame
          │   └─ kinect2_ir_optical_frame
-         ├─ camera_link  (cámara del portátil para reconocimiento facial)
+         ├─ camera_link      (cámara portátil para reconocimiento facial)
          ├─ front_ultrasonic_link
          ├─ rear_ultrasonic_link
-         └─ wheel_left_link
+         ├─ wheel_left_link
          └─ wheel_right_link
 ```
 
-### Cómo Publicar el TF base_link → kinect_link
+### Publicar TF Estático Provisional (Hasta Tener URDF)
 
 ```python
-# En robot_description.urdf o en un nodo estático:
 from tf2_ros import StaticTransformBroadcaster
 from geometry_msgs.msg import TransformStamped
 
-# VALORES PENDIENTES: Medir físicamente en el robot ensamblado
-# x = offset frontal del Kinect desde el centro del robot (metros)
-# z = altura del Kinect desde el suelo (metros)
+# VALORES PENDIENTES: medir físicamente en el robot ensamblado
 transform = TransformStamped()
 transform.header.frame_id = 'base_link'
-transform.child_frame_id = 'kinect_link'
-transform.transform.translation.x = 0.0   # TBD: medir
-transform.transform.translation.z = 0.8   # TBD: medir (aprox 80cm del suelo)
+transform.child_frame_id  = 'kinect_link'
+transform.transform.translation.x = 0.0    # TBD: offset frontal (m)
+transform.transform.translation.z = 0.88   # TBD: altura del Kinect (aprox 88 cm del suelo)
+```
+
+```bash
+# Alternativa rápida desde terminal
+ros2 run tf2_ros static_transform_publisher 0 0 0.88 0 0 0 base_link kinect_link
 ```
 
 ### Verificar TF Tree
 
 ```bash
-ros2 run tf2_tools view_frames
-# Genera: frames.pdf en el directorio actual
-
-# Ver transform en tiempo real
+ros2 run tf2_tools view_frames          # Genera frames.pdf
 ros2 run tf2_ros tf2_echo base_link kinect2_rgb_optical_frame
 ```
 
@@ -537,140 +549,137 @@ ros2 run tf2_ros tf2_echo base_link kinect2_rgb_optical_frame
 
 ## 9. COMUNICACIÓN CON MICROCONTROLADORES
 
-### ESP32 S3 - Movilidad (Próximo a implementar)
-
-**Función:** Recibir comandos de velocidad desde ROS2 y controlar los motores BLDC vía drivers ZS-X11H.
-
-**Protocolo propuesto:**
+### Arquitectura General
 
 ```
-PC (ROS2) → USB Serial → ESP32 S3 → PWM → Drivers ZS-X11H → Motores BLDC
-                                   ← Encoders Hall (RPM feedback)
+PC (ROS2) ←── USB-CDC (micro-ROS) ──→ STM32F411 Blackpill
+                                           ├── UART1 DMA ──→ ESP32 S3 Movilidad
+                                           │                  PWM motores, encoders Hall
+                                           │                  Sensores ultrasonido
+                                           ├── UART2 DMA ──→ ESP32 S3 Médica
+                                           │                  Dispensador + signos vitales
+                                           └── GPIO PA0/PA1 ← Botones HMI
 ```
 
-**Nodo ROS2 (esp32_bridge_node.py):**
+> El STM32F411 fue elegido como columna vertebral sobre un ESP32 adicional por: 6 UARTs hardware, DMA por canal, latencia determinista en `/cmd_vel` (decisión 2026-03-04). Ver `PROYECTO_GENERAL.md` sección 6 para la justificación completa.
 
-```python
-import rclpy
-from rclpy.node import Node
-from geometry_msgs.msg import Twist
-import serial
+### STM32F411 — micro-ROS
 
-class ESP32BridgeNode(Node):
-    def __init__(self):
-        super().__init__('esp32_bridge_node')
-        
-        # Parámetros del robot
-        self.wheel_base = 0.40   # metros (ancho de la base)
-        
-        # Serial con ESP32
-        self.ser = serial.Serial('/dev/ttyUSB0', 115200, timeout=1)
-        
-        # Suscripción a cmd_vel
-        self.subscription = self.create_subscription(
-            Twist, '/cmd_vel', self.cmd_vel_callback, 10)
-    
-    def cmd_vel_callback(self, msg):
-        linear = msg.linear.x
-        angular = msg.angular.z
-        
-        # Cinemática diferencial
-        v_left  = linear - angular * (self.wheel_base / 2)
-        v_right = linear + angular * (self.wheel_base / 2)
-        
-        # Enviar a ESP32 (protocolo TBD)
-        command = f"VL:{v_left:.3f},VR:{v_right:.3f}\n"
-        self.ser.write(command.encode())
-```
+**Estado:** ✅ micro-ROS base validado | ❌ Integración con ESP32s pendiente (espera robot armado)
 
-**Estado:** ❌ Pendiente implementación (próximo paso crítico)
+El STM32 corre como nodo ROS2 nativo vía micro-ROS (USB-CDC): se suscribe a `/cmd_vel` y publica topics de sensores directamente en el grafo ROS2 sin necesidad de un nodo intermediario en el PC.
 
-### ESP32 S3 - Médica
+### ESP32 S3 — Movilidad
 
-**Función:** Control del dispensador de medicamentos y lectura de sensores biomédicos.
+**Estado:** ❌ Firmware pendiente
 
-**Topics que publicará:**
-- `/health/bpm` → std_msgs/Int32
-- `/health/spo2` → std_msgs/Int32
-- `/health/temperature` → std_msgs/Float32
+| Elemento | Detalle |
+|----------|---------|
+| Función | PWM motores BLDC, lectura encoders Hall, sensores ultrasonido |
+| Conexión | UART desde STM32F411 |
+| Protocolo propuesto | `"VL:{vel:.3f},VR:{vel:.3f}\n"` a 115200 baud |
+| Feedback | RPM encoders → `/odom` (vía STM32) |
 
-**Servicios que recibirá:**
-- `/dispense` → request: nombre medicamento, response: éxito/error
+### ESP32 S3 — Médica
 
-**Estado:** ❌ Pendiente diseño del firmware (espera diseño mecánico)
+**Estado:** ❌ Firmware pendiente (espera diseño mecánico del dispensador)
 
-### STM32F411 Blackpill — MCU Auxiliar (Decisión tomada 2026-03-04)
-
-**Función:** Columna vertebral de comunicaciones. Corre micro-ROS (USB-CDC ↔ PC), enruta comandos por UART a ambos ESP32 y lee botones HMI por GPIO.
-
-**Por qué STM32F411 sobre ESP32 adicional:**
-
-| Criterio | STM32F411 ✅ | ESP32 adicional ❌ |
-|----------|-------------|-------------------|
-| UARTs hardware | 6 | 2-3 (con conflictos) |
-| DMA por canal | Sí | Limitado |
-| Latencia `/cmd_vel` | Determinista | Variable (WiFi/ESP-NOW) |
-| micro-ROS | Validado ✅ | Compatible, no probado |
-
-**Estado:** micro-ROS base validado ✅ | Integración con ESP32s ❌ (espera robot armado)
+| Elemento | Detalle |
+|----------|---------|
+| Función | Control dispensador + MAX30102 (BPM/SpO₂) + sensor temperatura |
+| Topics que publicará | `/health/bpm`, `/health/spo2`, `/health/temperature` |
+| Services que recibirá | `/dispense` → {nombre_medicamento} → {éxito / error} |
 
 ---
 
-## 10. PROBLEMAS CONOCIDOS Y SOLUCIONES
+## 10. ESTADO ACTUAL Y PENDIENTES
 
-### 1. RTAB-Map Lento (estaba a 0.2 Hz, mejorado)
+> **Última actualización:** 2026-03-10
 
-**Causa:** PointCloud QHD pesado + hardware limitado (i3 + 12GB RAM)
+### Resumen por Componente
+
+| Componente | Estado | Detalle |
+|------------|--------|---------|
+| **Kinect V2** | ✅ Completado | Driver compilado, topics disponibles, SLAM probado |
+| **RTAB-Map SLAM** | ⏳ En optimización | Funciona; pendiente mapa real del apartamento |
+| **Nav2** | ❌ Pendiente | Probado en simulación; espera robot físico armado |
+| **TF tree completo** | ❌ Pendiente | Solo `kinect2_*` disponibles; faltan `base_link`, `odom` |
+| **URDF del robot** | ❌ Pendiente | Espera diseño CAD finalizado |
+| **`esp32_bridge_node`** | ❌ Pendiente | Próximo nodo crítico a implementar |
+| **`vital_signs_node`** | ❌ Pendiente | Espera firmware ESP32 Médica |
+| **`medication_node`** | ❌ Pendiente | Espera diseño mecánico del dispensador |
+| **`person_detector_node`** | ❌ Pendiente | Port desde Windows a ROS2 |
+| **`face_recognition_node`** | ❌ Pendiente | Port desde Windows a ROS2 |
+| **`atlas_ros2_node`** | ❌ Pendiente | Atlas completo en Windows ✅; port a ROS2 pendiente |
+| **`state_machine_node`** | ❌ Pendiente | Diseñado; pendiente implementación |
+| **`scheduler_node`** | ❌ Pendiente | Lógica de horarios en BD ✅; nodo ROS2 pendiente |
+| **micro-ROS STM32** | ✅ Base validado | Comunicación básica OK; integración con ESP32 pendiente |
+| **Mapa apartamento real** | ❌ Pendiente | Espera robot físico para generarlo con RTAB-Map |
+
+### Próximos Pasos (Orden de Prioridad)
+
+1. **Robot físicamente armado** → desbloquea Nav2, TF tree, URDF, odometría
+2. **`esp32_bridge_node`** → primer nodo de actuación real
+3. **Port `atlas_ros2_node`** → sistema conversacional en Ubuntu
+4. **Port visión artificial** → detección + reconocimiento facial en ROS2
+5. **Mapa real del apartamento** → habilita navegación autónoma
+
+---
+
+## 11. PROBLEMAS CONOCIDOS Y SOLUCIONES
+
+### 1. RTAB-Map Lento (0.2 Hz inicial → mejorado con parámetros)
+
+**Causa:** PointCloud QHD pesado + hardware limitado (i3, 12 GB RAM)
 
 **Solución aplicada:**
-- Usar topics `sd` (baja resolución) en lugar de `qhd`
-- Parámetros optimizados: `DetectionRate=3.0`, `MaxFeatures=100`, `ImagePostDecimation=4`
-- `Grid/RangeMax=2.5` para ignorar datos lejanos
+- Usar topics `sd` en lugar de `qhd`
+- `DetectionRate=3.0`, `MaxFeatures=100`, `ImagePostDecimation=4`, `Grid/RangeMax=2.5`
 
-**Si sigue siendo lento (soluciones adicionales):**
+**Si persiste la lentitud:**
 ```bash
 # Agregar VoxelGrid filter antes de RTAB-Map
-# Agregar PassThrough filter (solo altura entre 0.1m y 1.5m del suelo)
-# Reducir aún más MaxFeatures si la precisión del mapa lo permite
+# Reducir MaxFeatures a 50 si la precisión del mapa lo permite
+# Agregar PassThrough filter (solo altura 0.1–1.5 m del suelo)
 ```
 
 ### 2. Kinect "Resource Busy" (LIBUSB_ERROR_BUSY)
 
-**Causa:** Dos procesos intentando usar el Kinect simultáneamente
+**Causa:** Dos procesos intentando usar el Kinect simultáneamente.
 
 **Solución:**
 ```bash
 killall -9 kinect2_bridge Protonect
 sleep 2
-# Luego lanzar el proceso deseado
+# Lanzar el proceso deseado
 ```
 
 ### 3. PointCloud2 No Visible en RViz
 
-**Causa:** QoS mismatch (Kinect publica Best Effort, RViz espera Reliable)
+**Causa:** QoS mismatch — Kinect publica Best Effort, RViz espera Reliable.
 
-**Solución:** RViz → PointCloud2 → Reliability Policy: **Best Effort**
+**Solución:** RViz → PointCloud2 → **Reliability Policy: Best Effort**
 
 ### 4. Sin Ventanas Gráficas por SSH
 
-**Causa:** Sin display X11 forwarding
+**Causa:** Sin display X11 forwarding activo.
 
-**Solución:** Ejecutar RViz y herramientas gráficas directamente en terminal física del Dell (o usar `DISPLAY=:0` si hay sesión gráfica activa)
+**Solución:** Ejecutar RViz y herramientas gráficas directamente en la terminal física del Dell. Si hay sesión gráfica activa: `export DISPLAY=:0`
 
 ### 5. TF Frames Incompletos
 
-**Causa:** URDF del robot no publicado aún
+**Causa:** URDF del robot aún no publicado.
 
-**Síntoma:** Warnings "No transform from [X] to [base_link]"
+**Síntoma:** Warnings `"No transform from [X] to [base_link]"`
 
-**Solución temporal:** Publicar transforms estáticos manualmente hasta tener el URDF completo:
+**Solución temporal:**
 ```bash
-ros2 run tf2_ros static_transform_publisher 0 0 0.8 0 0 0 base_link kinect_link
+ros2 run tf2_ros static_transform_publisher 0 0 0.88 0 0 0 base_link kinect_link
 ```
 
 ---
 
-## 11. COMANDOS DE REFERENCIA RÁPIDA
+## 12. COMANDOS DE REFERENCIA RÁPIDA
 
 ### Kinect V2
 
@@ -678,16 +687,14 @@ ros2 run tf2_ros static_transform_publisher 0 0 0.8 0 0 0 base_link kinect_link
 # Verificar conexión USB
 lsusb | grep Xbox
 
-# Test raw (ejecutar directamente en PC, no SSH)
+# Test raw (ejecutar en PC físico, no SSH)
 ~/libfreenect2/build/bin/Protonect
 
 # Lanzar driver ROS2
 ros2 launch kinect2_bridge kinect2_bridge_launch.yaml
 
-# Verificar topics activos
+# Verificar topics y frecuencia
 ros2 topic list | grep kinect2
-
-# Monitorear frecuencia
 ros2 topic hz /kinect2/sd/points
 ros2 topic hz /kinect2/qhd/image_color_rect
 ```
@@ -695,107 +702,69 @@ ros2 topic hz /kinect2/qhd/image_color_rect
 ### RTAB-Map (Versión Optimizada)
 
 ```bash
-# Asegurarse de que Kinect ya está corriendo
+# 1. Lanzar Kinect
 ros2 launch kinect2_bridge kinect2_bridge_launch.yaml &
 
-# Lanzar RTAB-Map optimizado
+# 2. Lanzar RTAB-Map
 ros2 launch rtabmap_launch rtabmap.launch.py \
   rgb_topic:=/kinect2/sd/image_color_rect \
   depth_topic:=/kinect2/sd/image_depth_rect \
   camera_info_topic:=/kinect2/sd/camera_info \
   frame_id:=kinect2_rgb_optical_frame \
-  subscribe_rgb:=true \
-  subscribe_depth:=true \
-  approx_sync:=true \
-  qos:=2 \
+  subscribe_rgb:=true subscribe_depth:=true \
+  approx_sync:=true qos:=2 \
   args:="--delete_db_on_start \
-    --Rtabmap/DetectionRate=3.0 \
-    --Kp/MaxFeatures=100 \
-    --Vis/MaxFeatures=200 \
-    --Mem/ImagePostDecimation=4 \
+    --Rtabmap/DetectionRate=3.0 --Kp/MaxFeatures=100 \
+    --Vis/MaxFeatures=200 --Mem/ImagePostDecimation=4 \
     --Grid/RangeMax=2.5"
 
-# Guardar mapa
-ros2 run nav2_map_server map_saver_cli -f ~/Meadlease/ros2_ws/src/robot_medical/maps/apartamento
+# 3. Guardar mapa
+ros2 run nav2_map_server map_saver_cli \
+  -f ~/Meadlease/ros2_ws/src/robot_medical/maps/apartamento
 ```
 
 ### Workspace
 
 ```bash
-# Compilar paquete específico
 cd ~/Meadlease/ros2_ws
-colcon build --packages-select robot_medical
-source install/setup.bash
+
+# Compilar paquete específico
+colcon build --packages-select robot_medical && source install/setup.bash
 
 # Compilar todo
 colcon build --symlink-install && source install/setup.bash
 
-# Limpiar todo
+# Limpiar y recompilar
 rm -rf build/ install/ log/ && colcon build --symlink-install
-
-# Ver estructura
-tree ~/Meadlease/ros2_ws/src -L 3
 ```
 
 ### Debugging General
 
 ```bash
-# Ver todos los nodos activos
+# Nodos y topics activos
 ros2 node list
-
-# Info de un nodo
-ros2 node info /kinect2_bridge
-
-# Ver todos los topics
 ros2 topic list
 
-# Echo de un topic
-ros2 topic echo /cmd_vel
+# Info detallada
+ros2 node info /kinect2_bridge
 ros2 topic echo /rtabmap/info
+ros2 topic echo /cmd_vel
 
-# TF Tree
+# TF tree
 ros2 run tf2_tools view_frames
 ros2 run tf2_ros tf2_echo base_link kinect2_rgb_optical_frame
 
-# Monitor del sistema
-htop
-# Buscar: rtabmap, kinect2_bridge, python3
+# Monitor de recursos
+htop   # Buscar: rtabmap, kinect2_bridge, python3
 
-# Ver logs de un nodo
+# Logs ROS2
 ros2 topic echo /rosout
-```
 
-### Teleoperación
-
-```bash
-# Control manual con teclado (para pruebas)
+# Teleoperación manual (pruebas)
 ros2 run teleop_twist_keyboard teleop_twist_keyboard
-# Publica en /cmd_vel
 ```
 
 ---
 
-## 12. NOTAS DE DESARROLLO
-
-### Código Python ROS2
-- Python 3.10 (Ubuntu 22.04)
-- Usar `rclpy`, **nunca** `rospy` (eso es ROS1)
-- Imports específicos: `from geometry_msgs.msg import Twist`
-- PEP8 + type hints + docstrings
-- Un nodo = una responsabilidad
-
-### Restricciones de hardware
-- CPU i3-3227U, 12 GB RAM → optimización crítica
-- Sin GPU: no usar modelos de visión que requieran CUDA
-- QoS Best Effort para todos los topics del Kinect
-- Velocidad máxima `/cmd_vel`: `linear.x <= 0.25`, `angular.z <= 0.5`
-
-### Estado del TF tree
-- `kinect2_rgb_optical_frame` ✅ disponible
-- `base_link` ❌ aún no publicado (requiere URDF)
-- Usar `kinect2_rgb_optical_frame` como `frame_id` para RTAB-Map hasta tener URDF completo
-
----
-
-*Para contexto general del proyecto: ver `PROYECTO_GENERAL.md`*  
-*Para el módulo conversacional Atlas: ver `DOCUMENTACION_CONVERSACIONAL.md`*
+*Para contexto general del proyecto: ver `PROYECTO_GENERAL.md`*
+*Para el sistema conversacional Atlas: ver `DOCUMENTACION_CONVERSACIONAL.md`*

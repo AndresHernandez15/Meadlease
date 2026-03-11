@@ -38,7 +38,7 @@ Meadlese es un robot asistente médico inteligente para uso domiciliario, diseñ
 
 **Nombre del sistema conversacional:** Atlas (wake word: "Atlas")  
 **Plataforma de software:** ROS2 Humble sobre Ubuntu 22.04  
-**Repositorio del módulo conversacional:** este repositorio (`robot_project`)
+**Repositorio del proyecto:** `Meadlease` (GitHub) · Módulo conversacional en `atlas/`
 
 ---
 
