@@ -1,466 +1,434 @@
-# 🤖 ROBOT ASISTENTE INTELIGENTE PARA EL CUIDADO DE LA SALUD EN EL HOGAR
-## Documentación General del Proyecto
+# ROBOT ASISTENTE MÉDICO DOMICILIARIO — MEADLESE
+## Documentación Técnica General del Proyecto
 
-> **Universidad Tecnológica de Bolívar**  
-> **Programa:** Ingeniería Mecatrónica  
-> **Tipo:** Proyecto de Grado  
-> **Fecha de creación:** 2026-02-26  
-> **Última actualización:** 2026-02-26  
-> **Deadline interno:** 1 de mayo de 2026 (robot armado y funcional)  
-> **Entrega final:** Finales de mayo de 2026  
+> **Universidad Tecnológica de Bolívar** · Ingeniería Mecatrónica · Proyecto de Grado  
+> **Última actualización:** 2026-03-09  
+> **Deadline robot funcional:** 1 de mayo de 2026  
+> **Entrega académica final:** Finales de mayo de 2026
 
 ---
 
-## 📋 ÍNDICE
+## ÍNDICE
 
-1. [Visión General](#visión-general)
-2. [Equipo de Trabajo](#equipo-de-trabajo)
-3. [Hardware del Sistema](#hardware-del-sistema)
-4. [Módulos del Proyecto](#módulos-del-proyecto)
-5. [Estado Actual del Proyecto](#estado-actual-del-proyecto)
-6. [Roadmap y Cronograma](#roadmap-y-cronograma)
-7. [Restricciones y Limitaciones](#restricciones-y-limitaciones)
-8. [Consideraciones Éticas](#consideraciones-éticas)
-
----
-
-## VISIÓN GENERAL
-
-### Descripción del Proyecto
-
-Robot asistente inteligente de uso domiciliario inspirado en el personaje ficticio "Baymax", diseñado para apoyar el cuidado autónomo de personas en casa. El sistema integra navegación autónoma, dispensación automatizada de medicamentos, monitoreo de signos vitales y conversación natural con el usuario.
-
-**Nombre provisional del sistema conversacional:** Atlas  
-**Nombre definitivo del robot:** Pendiente de definición (se evita usar "Baymax" por derechos de autor)
-
-### Objetivos Principales
-
-- Navegar de forma autónoma por un apartamento pequeño para localizar al usuario
-- Dispensar medicamentos al usuario en los horarios programados
-- Medir y registrar signos vitales básicos (BPM, SpO2, temperatura corporal)
-- Interactuar con el usuario mediante conversación natural en español
-- Proporcionar una interfaz de usuario intuitiva para gestión y consulta
-
-### Filosofía de Diseño
-
-- **Seguridad ante todo:** Movimiento lento, múltiples sensores de obstáculos, lógica de emergencia offline
-- **MVP sobre completitud:** Funcionalidad demostrable > sistema perfecto
-- **Modularidad:** Cada módulo puede desarrollarse y probarse independientemente
-- **Escalabilidad:** Estructura preparada para mejoras futuras (más batería, más sensores, más usuarios)
+1. [Descripción del Proyecto](#1-descripción-del-proyecto)
+2. [Equipo](#2-equipo)
+3. [Objetivos](#3-objetivos)
+4. [Requerimientos del Sistema](#4-requerimientos-del-sistema)
+5. [Arquitectura General](#5-arquitectura-general)
+6. [Hardware del Sistema](#6-hardware-del-sistema)
+7. [Módulos de Software](#7-módulos-de-software)
+8. [Diseño Físico del Robot](#8-diseño-físico-del-robot)
+9. [Estado Actual del Proyecto](#9-estado-actual-del-proyecto)
+10. [Roadmap](#10-roadmap)
+11. [Restricciones y Limitaciones](#11-restricciones-y-limitaciones)
+12. [Consideraciones Éticas](#12-consideraciones-éticas)
 
 ---
 
-## EQUIPO DE TRABAJO
+## 1. DESCRIPCIÓN DEL PROYECTO
 
-| Integrante | Perfil | Rol en el Proyecto |
-|------------|--------|--------------------|
-| **Andrés** (Líder) | Ing. Mecatrónico e Ing. de Sistemas | Software, ROS2, Kinect V2, mapeo, IA conversacional, impresión 3D |
-| **Linda** | Ing. Biomédica y Mecatrónica | Diseño mecánico del robot, diseño del dispensador, calibración y prueba de sensores biomédicos |
-| **Sergio** | Ing. Mecatrónico | Mecánica, prueba de motores, prueba del sistema de dispensación, apoyo a Linda |
-| **Juan** | Ing. Mecatrónico | Visión artificial, programación de microcontroladores, apoyo a Andrés |
+Meadlese es un robot asistente médico inteligente para uso domiciliario, diseñado para apoyar a personas con enfermedades crónicas (especialmente adultos mayores) en el seguimiento de sus tratamientos. Aborda el problema de que el ~60% de estos pacientes no adhieren correctamente a su medicación (OMS), lo que causa el 50% de los fracasos terapéuticos.
+
+**Funciones principales del robot:**
+1. Navegar autónomamente por el hogar para localizar al usuario
+2. Dispensar medicamentos sólidos según horarios programados
+3. Medir y registrar signos vitales (BPM, SpO₂, temperatura)
+4. Interactuar con el usuario mediante conversación natural en español
+5. Notificar a contactos de emergencia ante valores anómalos
+
+**Nombre del sistema conversacional:** Atlas (wake word: "Atlas")  
+**Plataforma de software:** ROS2 Humble sobre Ubuntu 22.04  
+**Repositorio del módulo conversacional:** este repositorio (`robot_project`)
 
 ---
 
-## HARDWARE DEL SISTEMA
+## 2. EQUIPO
 
-### Computador Principal (Cerebro del Robot)
+| Integrante | Perfil | Responsabilidades |
+|------------|--------|-------------------|
+| **Andrés** (líder) | Ing. Mecatrónico + Ing. Sistemas | Software, ROS2, sistema conversacional, Kinect, micro-ROS, impresión 3D |
+| **Linda** | Ing. Biomédica + Mecatrónica | Diseño mecánico del robot y dispensador, calibración de sensores biomédicos |
+| **Sergio** | Ing. Mecatrónico | Mecánica, pruebas de motores y dispensador |
+| **Juan** | Ing. Mecatrónico | Visión artificial, firmware de microcontroladores (ESP32) |
+
+---
+
+## 3. OBJETIVOS
+
+### Objetivo General
+Desarrollar un robot asistente médico inteligente para monitoreo de signos vitales básicos y dispensación de medicamentos en entornos domésticos.
+
+### Objetivos Específicos
+1. Diseñar la arquitectura modular del sistema (hardware + software)
+2. Seleccionar e integrar los componentes electrónicos, mecánicos y de comunicación
+3. Implementar los sistemas de medición de signos vitales, dispensación, reconocimiento facial y navegación autónoma
+4. Integrar la interfaz humano-máquina (HMI) para interacción por voz y pantalla
+5. Validar el funcionamiento integral mediante pruebas en entorno controlado
+
+### Entregables Académicos
+- Prototipo físico completamente operativo con todos los módulos integrados
+- Software de control (ROS2 + firmwares)
+- Interfaz de usuario (HMI: pantalla + voz)
+- Documentación técnica y académica
+
+---
+
+## 4. REQUERIMIENTOS DEL SISTEMA
+
+### Funcionales
+| ID | Requerimiento |
+|----|--------------|
+| RF-01 | Medir temperatura, BPM y SpO₂ con sensores biomédicos |
+| RF-02 | Movilidad autónoma en interiores con detección y evasión de obstáculos |
+| RF-03 | Dispensar medicamentos sólidos en horarios programados |
+| RF-04 | Interacción conversacional en lenguaje natural (español) |
+| RF-05 | Reconocimiento facial del usuario (mínimo 2 usuarios registrados) |
+| RF-06 | Notificación automática a contactos de emergencia vía Wi-Fi |
+| RF-07 | Registro y trazabilidad de mediciones y dispensaciones en BD local |
+| RF-08 | Indicadores visuales y auditivos de estado del sistema |
+| RF-09 | Control de acceso: el sistema no entrega medicación a no registrados |
+
+### No Funcionales / Restricciones de Diseño
+- Solo medicamentos sólidos (tabletas/cápsulas); máx. 6 tipos × ~14 unidades
+- Operación exclusiva en interiores, una sola planta
+- Velocidad máxima: 0.25 m/s
+- Dispensador bloqueado mientras el robot está en movimiento
+- La IA no emite diagnósticos ni prescripciones
+- Datos de salud almacenados solo localmente (nunca en la nube)
+- Requiere Wi-Fi para el sistema conversacional avanzado (con fallback offline)
+
+---
+
+## 5. ARQUITECTURA GENERAL
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     PC PRINCIPAL (ROS2)                     │
+│              Dell Inspiron · Ubuntu 22.04 · i3-3227U        │
+│                                                             │
+│  ┌──────────────┐  ┌────────────────┐  ┌──────────────────┐ │
+│  │  Nav2 + SLAM │  │ Sistema Atlas  │  │ Visión Artificial│ │
+│  │  (RTAB-Map)  │  │ (Conversacional│  │ (Reconoc. facial)│ │
+│  └──────┬───────┘  └───────┬────────┘  └─────────┬────────┘ │
+│         │                  │                     │          │
+│  ┌──────▼──────────────────▼─────────────────────▼────────┐ │
+│  │                  ROS2 Humble (topics / services)       │ │
+│  └──────────────────────────┬─────────────────────────────┘ │
+└─────────────────────────────┼───────────────────────────────┘
+                              │ USB-CDC (micro-ROS)
+                    ┌─────────▼──────────┐
+                    │    STM32F411       │
+                    │  (MCU Auxiliar)    │
+                    │ Columna vertebral  │
+                    │ de comunicaciones  │
+                    └────┬──────────┬────┘
+                         │ UART1    │ UART2
+              ┌──────────▼──┐  ┌───▼──────────────┐
+              │  ESP32 S3   │  │    ESP32 S3       │
+              │  Movilidad  │  │    Médica         │
+              │             │  │                   │
+              │ Motores BLDC│  │ Dispensador       │
+              │ Encoders    │  │ Signos vitales    │
+              │ Ultrasonidos│  │ MAX30102+MAX30205  │
+              └─────────────┘  └───────────────────┘
+```
+
+**Kinect V2** → USB al PC → ROS2 (kinect2_bridge)  
+**Cámara portátil** → USB al PC → módulo visión artificial  
+**Wi-Fi** → sistema conversacional cloud (Groq + Azure TTS) y alertas de emergencia
+
+---
+
+## 6. HARDWARE DEL SISTEMA
+
+### Computador Principal
 
 | Componente | Especificación |
 |------------|----------------|
 | Modelo | Dell Inspiron 3421 |
 | CPU | Intel Core i3-3227U |
 | RAM | 12 GB |
-| Almacenamiento | 500 GB HDD |
-| Sistema Operativo | Ubuntu Desktop 22.04.5 LTS |
-| Alimentación | Via jack DC desde batería (sin batería interna) |
-| Voltaje requerido | 19.5V (step-down desde batería) |
+| SO | Ubuntu 22.04.5 LTS |
+| Alimentación | 19.5V via step-down desde batería |
 
-> **Nota:** Hardware moderado. Todo el diseño de software prioriza optimización sobre features.
+### Sensores y Percepción
 
-### Sensor Principal de Percepción
+| Componente | Función | Estado |
+|----------|---------|--------|
+| Kinect V2 (USB 3.0, 12V) | Mapeo SLAM 3D + detección de personas | ✅ Probado |
+| Cámara portátil | Reconocimiento facial | ✅ Probado |
+| JSN-SR04T × 2 (frontal/trasero) | Detección principal de obstáculos | ✅ Conseguidos |
+| HC-SR04 × 2-4 (esquinas) | Cobertura lateral de obstáculos | ✅ Conseguidos |
+| IR anticaída (posición TBD) | Detección de escalones/desniveles | ⏳ Pendiente selección |
+| MAX30102 | BPM + SpO₂ | ⏳ Pendiente calibración |
+| Sensor temperatura corporal | Temperatura corporal por contacto | ⏳ Pendiente calibración |
 
-| Componente | Especificación |
-|------------|----------------|
-| Modelo | Microsoft Kinect V2 |
-| RGB | 1920x1080 @ 30fps |
-| Depth | 512x424 @ 30fps |
-| Rango útil | 0.5m - 4.5m |
-| Conexión | USB 3.0 + adaptador de corriente |
-| Alimentación | 12V (step-down desde batería) |
-| Serial | 204763633847 |
-| Uso | Mapeo SLAM 3D + detección de personas (TBD) |
+### Actuadores y Movilidad
 
-### Actuadores de Movilidad
-
-| Componente | Especificación |
-|------------|----------------|
-| Motores | 2x BLDC (Brushless DC) de 24V extraídos de Hoverboard |
-| Sensores Hall | Sí, incluidos (lectura de RPM validada ✅) |
-| Drivers | 2x ZS-X11H |
-| Configuración | Tracción diferencial (2 ruedas motrices + 1 rueda loca delantera) |
-| Control PWM | Validado desde ESP32 S3 ✅ |
+| Componente | Especificación | Estado |
+|------------|----------------|--------|
+| Motores BLDC × 2 | 24V, hoverboard, con sensores Hall | ✅ Probados |
+| Drivers ZS-X11H × 2 | Control PWM | ✅ Probados |
+| Rueda frontal | Equilibrio (no motrices) | ✅ |
+| Brazo robótico 2DOF | Dispensación de medicamentos | ⏳ En diseño |
+| Bomba de vacío + manguera | Manipulación de pastillas sin daño | ⏳ En diseño |
+| Sensor de presión | Confirma captura de pastilla | ⏳ En diseño |
 
 ### Microcontroladores
 
 | MCU | Función | Estado |
 |-----|---------|--------|
-| ESP32 S3 (Movilidad) | Control de motores vía PWM, lectura encoders Hall, sensores de obstáculos | ✅ Conectado a motores, probado |
-| ESP32 S3 (Médica) | Control del dispensador de medicamentos, lectura de sensores de signos vitales | ⏳ Pendiente integración |
-| STM32F411 Blackpill o ESP32 auxiliar | Comunicación con PC, recepción de botones HMI (si aplica) | ❌ Pendiente evaluación |
+| **STM32F411 Blackpill** | Columna vertebral: micro-ROS (USB-CDC ↔ PC), UART1 ↔ ESP32 Movilidad, UART2 ↔ ESP32 Médica, GPIO botones HMI | ✅ micro-ROS validado |
+| **ESP32 S3 — Movilidad** | PWM motores, encoders Hall, sensores obstáculos | ✅ Conectado y probado |
+| **ESP32 S3 — Médica** | Control dispensador + sensores signos vitales | ⏳ Pendiente integración |
 
-> **Decisión pendiente:** STM32F411 (mejor control de interrupciones, comunicación UART) vs ESP32 adicional (ESP-NOW u otro protocolo inalámbrico). Requiere pruebas comparativas.
-
-### Sensores de Obstáculos y Seguridad
-
-| Sensor | Cantidad | Posición | Función |
-|--------|----------|----------|---------|
-| JSN-SR04T (ultrasónico impermeable) | 2 | Frontal y trasero | Detección principal de obstáculos |
-| HC-SR04 (ultrasónico) | 2-4 | Esquinas (distribución TBD) | Cobertura lateral adicional |
-| Infrarrojo anticaída | TBD | Bordes delanteros | Detección de escalones/desniveles |
-
-> **Nota:** Distribución exacta de HC-SR04 y selección definitiva del sensor anticaída están pendientes de pruebas.
-
-### Sensores Biomédicos
-
-| Sensor | Magnitudes | Estado |
-|--------|-----------|--------|
-| MAX30102 (o similar) x2 | BPM (ritmo cardíaco), SpO2 (saturación de oxígeno) | ⏳ Conseguidos, pendiente prueba y calibración |
-| Sensor temperatura corporal | Temperatura corporal | ⏳ Conseguido, pendiente prueba y calibración |
+> STM32F411 elegido sobre ESP32 para MCU auxiliar por: 6 UARTs hardware, DMA por canal, latencia determinista en `/cmd_vel` (decisión tomada 2026-03-04).
 
 ### Sistema de Energía
 
 | Componente | Detalle | Estado |
 |------------|---------|--------|
-| Pack de baterías | 7S 4P litio, ~29.4V nominal, ~6000mAh | ✅ Armado |
-| Step-Down 19.5V | Alimentación portátil (jack DC) | ✅ Conseguido, probado |
-| Step-Down 12V | Alimentación Kinect V2 | ✅ Conseguido |
-| Step-Down 5V | MCUs, sensores, actuadores menores | ✅ Conseguido |
-| Voltaje directo (~24-29V) | Motores BLDC via drivers ZS-X11H | ✅ |
-
-> **Nota de capacidad:** 6000mAh es suficiente para demostración. La estructura interna permite añadir packs adicionales para mayor autonomía en versiones futuras.
+| Pack baterías | 7S 4P litio, ~29.4V, ~6000mAh | ✅ Armado |
+| Step-down 19.5V | Portátil | ✅ Probado |
+| Step-down 12V | Kinect V2 | ✅ |
+| Step-down 5V | MCUs y sensores | ✅ |
+| Voltaje directo ~24-29V | Motores BLDC vía drivers | ✅ |
 
 ---
 
-## MÓDULOS DEL PROYECTO
+## 7. MÓDULOS DE SOFTWARE
 
-### Módulo 1: Movilidad Autónoma
+### 7.1 Movilidad Autónoma
 
-**Objetivo:** El robot debe ser capaz de moverse de forma segura y autónoma por un apartamento pequeño para localizar al usuario.
+**Stack:** ROS2 Humble + RTAB-Map (SLAM 3D) + Nav2  
+**Responsables:** Andrés (software), Sergio (firmware ESP32)
 
-**Componentes clave:**
-- Kinect V2 como sensor principal para mapeo (RTAB-Map en ROS2)
-- Nav2 para navegación autónoma con el mapa generado
-- ESP32 S3 como puente entre los comandos de ROS2 (`/cmd_vel`) y los motores físicos
-- Sensores de obstáculos como capa de seguridad adicional
+- Kinect V2 genera nube de puntos → RTAB-Map construye mapa 3D del entorno
+- Nav2 planifica y ejecuta rutas con el mapa guardado
+- Flujo de comando: `Nav2 → /cmd_vel → STM32 (micro-ROS) → UART → ESP32 → PWM → motores`
+- Parada automática si ultrasonido frontal detecta obstáculo < 30 cm
+- Velocidad máxima: **0.25 m/s**
 
-**Lógica de operación:**
-1. En primera ejecución o por comando, el robot mapea el apartamento con Kinect
-2. Una vez con mapa guardado, usa Nav2 + localización para navegar
-3. Recibe objetivo de navegación (ej: posición del usuario detectada por visión)
-4. Se desplaza de forma segura evitando obstáculos
-
-**Parámetros de seguridad:**
-- Velocidad máxima: 0.25 m/s
-- Detención automática si ultrasonido detecta obstáculo < 30cm
-- Sensores anticaída activos en todo momento
-
-**Responsables:** Andrés (software/ROS2), Juan (firmware ESP32), Sergio (mecánica/pruebas)
+**Estado:** SLAM funcionando en Ubuntu ✅ | Nav2 en robot físico ❌ (espera armado)
 
 ---
 
-### Módulo 2: Visión Artificial
-
-**Objetivo:** Detectar personas en el entorno del robot e identificar al usuario mediante reconocimiento facial para personalizar la interacción.
-
-**Componentes:**
-- Cámara del portátil (ubicada en la parte superior de la pantalla) como sensor principal para reconocimiento facial
-- Kinect V2 como posible apoyo para detección de personas a mayor rango
-
-**Flujo de operación:**
-1. El robot detecta presencia de una persona (detección de silueta/skeleton)
-2. Se aproxima para tener un rango adecuado de visión del rostro
-3. Realiza reconocimiento facial para verificar si es un usuario registrado
-4. Si es usuario reconocido → activa flujo de interacción personalizado
-5. Si no es reconocido → comportamiento por defecto
-
-**Usuarios soportados:** Mínimo 2 usuarios registrados (requerimiento del profesor)
+### 7.2 Visión Artificial
 
 **Responsable:** Juan
 
----
+- Detección de personas con Kinect V2 (skeleton tracking)
+- Reconocimiento facial con cámara del portátil para verificar identidad
+- Mínimo **2 usuarios registrados** (requerimiento académico)
+- Usuario no reconocido → el robot no dispensa medicación
 
-### Módulo 3: Dispensación de Medicamentos
-
-**Objetivo:** Dispensar automáticamente el medicamento correcto al usuario en el horario programado.
-
-**Componentes mecánicos:**
-- Carrusel de pastillas (compartimentos identificados por medicamento)
-- Brazo robótico de 2DOF para manipulación
-- Manguera conectada a bomba de vacío (para agarrar pastillas sin dañarlas)
-- Sensor de presión (confirma cuando la pastilla es capturada en la manguera)
-
-**Control:** ESP32 S3 (compartida con módulo de signos vitales)
-
-**Flujo de operación:**
-1. Sistema detecta que es hora de tomar un medicamento (scheduler)
-2. Robot localiza al usuario (movilidad + visión)
-3. Sistema verifica identidad del usuario (reconocimiento facial)
-4. Brazo selecciona el medicamento correcto del carrusel
-5. Vacío agarra la pastilla, sensor confirma captura
-6. Robot entrega el medicamento al usuario
-7. Sistema registra la entrega en base de datos
-
-**Estado:** ❌ Diseño mecánico en curso (Linda + Sergio)
-
-**Responsables:** Linda (diseño mecánico), Sergio (pruebas mecánicas), Juan (firmware ESP32)
+**Estado:** Funcionando en Windows ✅ | Port a ROS2 ❌ pendiente
 
 ---
 
-### Módulo 4: Monitoreo de Signos Vitales
+### 7.3 Sistema Conversacional — Atlas
 
-**Objetivo:** Medir y registrar periódicamente los signos vitales del usuario para llevar un historial de salud.
+**Responsable:** Andrés  
+**Documentación completa:** `DOCUMENTACION_CONVERSACIONAL.md`
 
-**Magnitudes medidas:**
-- Ritmo cardíaco (BPM)
-- Saturación de oxígeno en sangre (SpO2)
-- Temperatura corporal
+**Arquitectura híbrida Edge-Cloud:**
 
-**Control:** ESP32 S3 (compartida con módulo dispensador)
+| Escenario | Procesamiento | Latencia |
+|-----------|--------------|----------|
+| Sin internet / comando conocido | Local — Vosk offline | ~500 ms |
+| Conversación avanzada | Cloud — Groq Whisper STT + Llama 3.3 70B + Azure TTS | ~1.6-1.9 s |
 
-**Flujo de operación:**
-1. Por comando del usuario o por horario programado
-2. Robot solicita al usuario colocar el dedo/mano en el sensor
-3. Realiza medición (MAX30102 + sensor temperatura)
-4. Almacena resultado en base de datos local con timestamp
-5. El usuario puede consultar su historial desde el HMI o preguntando a Atlas
+- **Wake word:** "Atlas" (Porcupine)
+- **TTS:** Azure Neural Voice `es-PE-CamilaNeural`
+- **Idioma:** Español latino
+- **BD local:** SQLite — historial de salud, horarios de medicación, usuarios registrados
+- **Principio ético:** Nunca diagnostica ni prescribe; siempre deriva al médico
 
-**Estado:** ⏳ Sensores conseguidos, pendiente pruebas y calibración (Linda)
-
-**Responsables:** Linda (calibración y pruebas), Juan (firmware ESP32)
+**Estado:** Pipeline completo en Windows ✅ | Port a ROS2 ❌
 
 ---
 
-### Módulo 5: HMI e Interfaz de Usuario
+### 7.4 Dispensación de Medicamentos
 
-**Objetivo:** Proveer al usuario una interfaz visual intuitiva en la pantalla del portátil para gestionar todas las funciones del robot, y un sistema conversacional para interacción natural.
+**Responsables:** Linda + Sergio
 
-**Interfaz gráfica:**
-- Tipo: Aplicación desktop (modo kiosco) — tecnología TBD (PyQt, Electron, u otro)
-- Pantalla: Pantalla del portátil Dell (no táctil)
-- Interacción: Por evaluar entre trackpad o botones físicos
-- Si se usan botones: MCU auxiliar recibe señales y las envía al portátil
+- Carrusel de compartimentos (6 tipos de medicamento, ~14 unidades/tipo)
+- Brazo robótico 2DOF + bomba de vacío para manipulación sin dañar pastillas
+- Sensor de presión confirma captura antes de la entrega
+- El dispensador se bloquea si el robot está en movimiento
+- Cada dispensación se registra en BD local (timestamp + usuario + medicamento)
 
-**Sistema conversacional (Atlas):**
-- Activación por wake word: "Atlas"
-- Procesamiento local para comandos predefinidos (sin internet, Vosk)
-- Procesamiento cloud para conversación avanzada (Groq LLM + Groq Whisper + Azure TTS)
-- Idioma: Español colombiano
-- Voz: Azure Neural Voice (Salome, femenina, empática)
-- Ver documentación detallada en `DOCUMENTACION_CONVERSACIONAL.md`
+**Flujo:**
+1. Scheduler detecta hora de medicación
+2. Robot localiza y verifica identidad del usuario (visión artificial)
+3. Brazo selecciona el medicamento del carrusel
+4. Vacío agarra la pastilla → sensor confirma → entrega al usuario
+5. Registro en BD
 
-**Base de datos local:**
-- Almacena: usuarios registrados, horarios de medicamentos, historial de signos vitales, registros de dispensación
-- Motor: TBD (SQLite probable por ligereza)
-
-**Estado:** ❌ Pendiente (se desarrolla al final, cuando los demás módulos estén en ROS2)
-
-**Responsable:** Andrés
+**Estado:** Diseño mecánico en progreso ⏳ | Construcción + firmware ❌
 
 ---
 
-### Módulo 6: Comunicación PC ↔ Microcontroladores
+### 7.5 Monitoreo de Signos Vitales
 
-**Objetivo:** Canal de comunicación confiable entre el portátil (ROS2) y los microcontroladores.
+**Responsables:** Linda (calibración), Juan (firmware ESP32)
 
-**Opción A - STM32F411 Blackpill:**
-- Ventaja: Mejor control de interrupciones, comunicación física UART
-- Integración ROS2: ros2serial o protocolo personalizado
-- Ideal para: Control de botones HMI con alta responsividad
+- **Sensores:** MAX30102 (BPM + SpO₂) y sensor temperatura corporal (por contacto)
+- Medición por comando de voz o por horario programado
+- Resultados almacenados en BD local con timestamp
+- Alerta automática vía Wi-Fi si valores fuera de rango normal
 
-**Opción B - ESP32 adicional:**
-- Ventaja: Protocolo ESP-NOW u otro inalámbrico, sin cables extra
-- Integración ROS2: Vía WiFi o serial USB
-
-**Estado:** ❌ Pendiente pruebas comparativas para tomar decisión
+**Estado:** Sensores conseguidos ✅ | Calibración y firmware ⏳
 
 ---
 
-### Extra: ROS2 como Framework de Integración
+### 7.6 HMI e Interfaz de Usuario
 
-ROS2 Humble Hawksbill se utiliza en el portátil como framework principal de integración entre todos los módulos de software. Facilita:
-- Drivers para Kinect V2 (kinect2_bridge)
-- SLAM 3D con RTAB-Map
-- Navegación autónoma con Nav2
-- Comunicación entre nodos mediante topics y servicios
-- Visualización con RViz2
+**Responsable:** Andrés — *se desarrolla al final del proyecto*
 
-Ver documentación técnica detallada en `DOCUMENTACION_ROS2.md`.
+- Pantalla del portátil en modo kiosco (aplicación desktop — tecnología TBD: PyQt u otro)
+- Interacción: comandos de voz (Atlas) + botones físicos / trackpad
+- Funciones: ver historial, programar medicación, registrar usuarios, recibir alertas
+
+**Estado:** ❌ Pendiente
 
 ---
 
-## ESTRUCTURA FÍSICA DEL ROBOT
+### 7.7 Comunicación PC ↔ Microcontroladores
+
+```
+PC (ROS2)  ←── USB-CDC (micro-ROS) ──→  STM32F411
+                                              ├── UART1 DMA ──→ ESP32 S3 Movilidad
+                                              ├── UART2 DMA ──→ ESP32 S3 Médica
+                                              └── GPIO PA0/PA1 ← Botones HMI
+```
+
+El STM32 corre como nodo ROS2 nativo vía **micro-ROS**: se suscribe a `/cmd_vel` y publica topics de sensores directamente en el grafo ROS2.
+
+**Estado:** micro-ROS base validado ✅ | Integración con ESP32s ❌ (espera robot armado)
+
+---
+
+## 8. DISEÑO FÍSICO DEL ROBOT
 
 ### Dimensiones
 
-| Dimensión | Valor |
-|-----------|-------|
-| Ancho base | 40 cm |
-| Largo base | 50 cm |
-| Alto total | ~110 cm |
-| Configuración ruedas | 2 ruedas motrices traseras + 1 rueda loca delantera |
+| Dimensión | Valor                                                      |
+|-----------|------------------------------------------------------------|
+| Ancho base | 55 cm                                                      |
+| Largo base | 60 cm                                                      |
+| Alto total | ~120 cm                                                    |
+| Configuración ruedas | 2 motrices traseras BLDC + 1 pequeña frontal |
 
-### Estructura y Carcasa
+### Posición de Componentes
 
-- **Estructura interna:** Reforzada con 4 varillas roscadas ubicadas estratégicamente en el centro de masa
-- **Carcasa:** Impresión 3D en PET-G (6 kg disponibles)
+| Componente | Altura desde el suelo | Justificación |
+|------------|----------------------|---------------|
+| Pantalla (HMI) | ~110 cm (parte superior) | A la altura visual del usuario de pie |
+| Kinect V2 | ~88 cm | Campo de visión amplio; cubre usuario de pie y sentado |
+| Sensores biomédicos | Lateral derecho accesible | Usuario apoya dedo/brazo para lectura |
+| Dispensador | ~60 cm | A la altura de la mano de una persona sentada |
+| Botón de emergencia | ~20 cm | Accionable con el pie |
+
+### Estructura y Materiales
+- **Estructura interna:** 4 varillas roscadas de soporte (distribuidas en el centro de masa)
+- **Carcasa:** Impresión 3D en **PETG** (6 kg disponibles)
 - **Uniones:** Sistema tipo cola de milano
-- **Acabado:** Masilla automotriz + pintura para acabado profesional
-- **Diseño:** Modular para facilitar mantenimiento y escalabilidad
-
-### Posición de Componentes (TBD al finalizar diseño mecánico)
-- Kinect V2: Altura y offset frontal por definir en diseño CAD
-- Cámara portátil: Parte superior del robot (encima de la pantalla)
-- Sensores ultrasonidos: Perímetro (posiciones exactas TBD)
-- Sensores biomédicos: Posición accesible para el usuario (TBD)
-- Pantalla portátil: Parte frontal, orientada hacia el usuario
+- **Acabado:** Masilla automotriz + pintura
+- **Puertas traseras de mantenimiento** para acceso al interior (recarga de pastillas + revisión electrónica)
+- **Estabilidad:** Base triangular (3 puntos de apoyo); CoM diseñado para mantenerse dentro del polígono de soporte
 
 ---
 
-## ESTADO ACTUAL DEL PROYECTO
+## 9. ESTADO ACTUAL DEL PROYECTO
 
-> **Fecha:** 2026-02-26
+> **Última actualización:** 2026-03-09
 
-| Módulo | Componente | Estado | Notas |
-|--------|------------|--------|-------|
-| **Movilidad** | Motores instalados + control PWM | ✅ Completado | Probado con ESP32, lectura encoders Hall validada |
-| **Movilidad** | SLAM con Kinect + RTAB-Map | ⏳ En progreso | Optimización realizada, funcionando en Ubuntu |
-| **Movilidad** | Nav2 navegación autónoma | ❌ Pendiente | Se inicia cuando robot esté armado |
-| **Movilidad** | Nodo puente ESP32 ↔ ROS2 | ⏳ En desarrollo | Próximo paso crítico |
-| **Visión** | Detección de personas | ❌ Pendiente | Por iniciar (Juan) |
-| **Visión** | Reconocimiento facial | ❌ Pendiente | Por iniciar (Juan) |
-| **Dispensador** | Diseño mecánico | ⏳ En progreso | Linda + Sergio trabajando en ello |
-| **Dispensador** | Construcción física | ❌ Pendiente | Esperando diseño |
-| **Dispensador** | Firmware ESP32 | ❌ Pendiente | Esperando diseño mecánico |
-| **Signos Vitales** | Sensores | ⏳ Conseguidos | Pendiente pruebas y calibración (Linda) |
-| **Signos Vitales** | Firmware ESP32 | ❌ Pendiente | |
-| **Conversacional** | Módulos audio + local (Vosk) | ✅ Completado | Funcionando en Windows |
-| **Conversacional** | Módulos cloud (Groq + Azure) | ✅ Completado | Funcionando en Windows |
-| **Conversacional** | FSM + main.py | ⏳ En pruebas | Validación final en Windows |
-| **Conversacional** | Port a ROS2 | ❌ Pendiente | |
-| **HMI** | Interfaz desktop | ❌ Pendiente | Se hace al final |
-| **Energía** | Pack baterías 7S4P | ✅ Completado | Armado y probado |
-| **Energía** | Step-downs (19.5V, 12V, 5V) | ✅ Completado | Conseguidos, alimentación portátil probada |
-| **Estructura** | Diseño CAD carcasa 3D | ⏳ En progreso | Finaliza en 1-2 días |
-| **Estructura** | Impresión 3D PET-G | ❌ Pendiente | Inicia al terminar diseño |
-| **Comunicación** | Selección MCU auxiliar | ❌ Pendiente | Pruebas STM32 vs ESP32 |
+| Módulo | Componente | Estado |
+|--------|------------|--------|
+| **Movilidad** | Control PWM motores + encoders Hall | ✅ Completado |
+| **Movilidad** | SLAM Kinect + RTAB-Map en Ubuntu | ✅ Completado |
+| **Movilidad** | Nav2 en robot físico | ❌ Pendiente — espera robot armado |
+| **Movilidad** | Nodo `/cmd_vel` → STM32 → UART → ESP32 | ⏳ En desarrollo |
+| **Visión** | Detección de personas + reconocimiento facial | ✅ Completado (Windows) — port ROS2 pendiente |
+| **Conversacional** | Pipeline completo (Vosk + Groq + Azure) | ✅ Completado (Windows) |
+| **Conversacional** | FSM + main.py — validación final | ✅ Completado |
+| **Conversacional** | Port a ROS2 | ❌ Pendiente |
+| **Dispensador** | Diseño mecánico | ⏳ En progreso (Linda + Sergio) |
+| **Dispensador** | Construcción física + firmware | ❌ Pendiente |
+| **Signos Vitales** | Sensores conseguidos | ⏳ Pendiente calibración y firmware |
+| **HMI** | Interfaz desktop | ❌ Pendiente (última etapa) |
+| **Comunicación** | micro-ROS STM32 base | ✅ Completado |
+| **Comunicación** | Integración STM32 ↔ ESP32s | ❌ Pendiente — espera robot armado |
+| **Estructura** | Diseño CAD + impresión 3D PETG | ⏳ En progreso |
+| **Energía** | Pack 7S4P + step-downs | ✅ Completado |
 
 ---
 
-## ROADMAP Y CRONOGRAMA
+## 10. ROADMAP
 
-### Meta: Robot funcional listo para pruebas finales → 1 de mayo 2026
+### Fase 1 — Integración Mecánica (Marzo 2026)
+- [ ] Finalizar diseño CAD → iniciar impresión 3D en PETG
+- [ ] Robot físicamente armado (estructura + electrónica montada)
+- [ ] Movilidad básica funcional (teleop)
+- [ ] TF tree completo en ROS2
+- [ ] Mapa del entorno de prueba generado con Kinect + RTAB-Map
 
-### Prioridades Inmediatas (Próximas 2 semanas)
-1. Finalizar diseño CAD e iniciar impresión 3D
-2. Implementar nodo puente ESP32 ↔ ROS2 (`/cmd_vel` → Serial → Motores)
-3. Validar FSM + main.py del sistema conversacional en Windows
-4. Iniciar diseño del módulo dispensador
-5. Pruebas y calibración de sensores biomédicos
+### Fase 2 — Navegación, Percepción y Conversacional (Abril — 1ª mitad)
+- [ ] Nav2 funcionando en robot físico
+- [ ] Port del sistema conversacional Atlas a ROS2
+- [ ] Port del módulo de visión artificial a ROS2
+- [ ] Reconocimiento facial de 2 usuarios en robot físico
 
-### Fase 1: Integración Mecánica (Marzo)
-- Robot físicamente armado (estructura + electrónica)
-- Movilidad básica funcional (teleop físico)
-- TF tree completo en ROS2
-- Mapa del apartamento de prueba generado
+### Fase 3 — Funciones Médicas e Integración (Abril — 2ª mitad)
+- [ ] Dispensador construido y funcionando con firmware ESP32
+- [ ] Signos vitales calibrados e integrados en ROS2
+- [ ] BD local operativa con todos los módulos conectados
+- [ ] Pruebas de integración completa end-to-end
 
-### Fase 2: Navegación y Percepción (Abril - primera mitad)
-- Nav2 funcionando en robot físico
-- Detección de personas con cámara
-- Reconocimiento facial (2 usuarios)
-- Sistema conversacional portado a ROS2
-
-### Fase 3: Funciones Médicas (Abril - segunda mitad)
-- Dispensador construido y funcionando
-- Signos vitales integrados en ROS2
-- Base de datos local operativa
-- Integración completa de todos los módulos
-
-### Entrega Final (Mayo)
-- Pruebas end-to-end con usuarios reales
-- Documentación académica
-- Presentación del prototipo
+### Entrega Final (Mayo 2026)
+- [ ] Pruebas con usuarios reales
+- [ ] Documentación académica completa
+- [ ] Presentación del prototipo
 
 ---
 
-## RESTRICCIONES Y LIMITACIONES
+## 11. RESTRICCIONES Y LIMITACIONES
 
-### Tiempo
-- Deadline: 1 mayo 2026 (robot funcional) + finales mayo (entrega académica)
-- ~280 horas de trabajo restantes estimadas
-
-### Presupuesto
-- Hardware principal: ✅ Ya adquirido
-- APIs conversación: ~$10-15/mes (Groq gratuito, Azure TTS ~$5-10/mes)
-- Material impresión 3D: ✅ 6 kg PET-G disponibles
-- Sensores adicionales: Ya conseguidos
-
-### Hardware
-- Sin GPU dedicada (solo CPU Intel i3)
-- RAM limitada: 12GB (RTAB-Map consume ~3-4GB)
-- Sin LIDAR profesional (se usa Kinect como sustituto)
-- Autonomía de batería limitada (~6000mAh, suficiente para demos)
-
-### Operacionales
-- Uso exclusivo en interiores
-- Velocidad máxima 0.25 m/s (seguridad)
-- Dependencia de internet para conversación avanzada (con fallback local)
-- Robot conectado a la red del apartamento para APIs cloud
+| Categoría | Restricción |
+|-----------|-------------|
+| **Tiempo** | Deadline duro: 1 de mayo de 2026 |
+| **Medicamentos** | Solo sólidos (tabletas/cápsulas); máx. 6 tipos × ~14 unidades |
+| **Movilidad** | Solo una planta; no sube escaleras; velocidad máx. 0.25 m/s |
+| **Hardware** | CPU i3 sin GPU; RAM 12 GB (RTAB-Map consume ~3-4 GB); sin LIDAR profesional |
+| **Kinect V2** | Sensible a luz solar directa, superficies reflectivas y vidrios |
+| **Energía** | ~6000mAh (suficiente para demos; escalable con packs adicionales) |
+| **Conectividad** | Conversación avanzada requiere Wi-Fi; fallback offline solo para comandos predefinidos |
 
 ---
 
-## CONSIDERACIONES ÉTICAS
+## 12. CONSIDERACIONES ÉTICAS
 
-### Sobre el módulo médico
+> Este sistema es un **prototipo académico** y NO es un dispositivo médico certificado.  
+> Normas de referencia consideradas: **ISO 13482** (robots de cuidado personal) e **IEC 60601-1-11** (equipos médicos domiciliarios).
 
-> **IMPORTANTE:** Este sistema es un prototipo académico de investigación y **NO es un dispositivo médico certificado**.
+| El sistema PUEDE | El sistema NO PUEDE |
+|-----------------|---------------------|
+| Recordar y ejecutar horarios de medicación configurados | Diagnosticar enfermedades |
+| Dispensar medicamentos previamente cargados | Prescribir o modificar tratamientos |
+| Registrar y reportar mediciones de signos vitales | Reemplazar la supervisión médica profesional |
+| Brindar información general de salud | Tomar decisiones médicas autónomas |
+| Notificar a contactos de emergencia | Acceder a datos de salud sin identificación del usuario |
 
-**El sistema SÍ puede:**
-- Recordar horarios de medicamentos registrados por el usuario o cuidador
-- Dispensar medicamentos previamente cargados y configurados
-- Reportar mediciones de signos vitales almacenadas
-- Brindar información general de salud
-
-**El sistema NO puede:**
-- Diagnosticar enfermedades o condiciones médicas
-- Prescribir medicamentos o modificar tratamientos
-- Reemplazar la supervisión de un profesional de la salud
-- Tomar decisiones médicas autónomas
-
-### Privacidad
-- Los datos de salud se almacenan localmente (no en la nube)
-- Las conversaciones no se almacenan permanentemente
-- El reconocimiento facial opera con consentimiento explícito del usuario
-
-### Seguridad física
-- Velocidad limitada para proteger a usuarios, especialmente adultos mayores
-- Múltiples capas de detección de obstáculos
-- Comandos de emergencia siempre disponibles offline
+**Privacidad y seguridad física:**
+- Datos de salud solo en BD local (nunca en la nube)
+- Conversaciones no almacenadas de forma permanente
+- Reconocimiento facial solo con consentimiento explícito del usuario registrado
+- Velocidad limitada + múltiples sensores de obstáculos para proteger al usuario
 
 ---
 
-## ENTORNO DE OPERACIÓN
+*Para documentación técnica detallada por módulo, ver:*  
+*→ `DOCUMENTACION_CONVERSACIONAL.md` (sistema Atlas)*  
+*→ `DOCUMENTACION_ROS2.md` (ROS2, Nav2, Kinect, micro-ROS)*
 
-- **Tipo:** Apartamento residencial pequeño (50-80 m² estimado)
-- **Suelos:** Indoor (madera, baldosa o similar)
-- **Iluminación:** Natural y artificial
-- **Obstáculos típicos:** Muebles, personas, mascotas
-
-**Limitaciones del Kinect a considerar:**
-- Luz solar directa directa degrada la lectura de profundidad
-- Vidrios y espejos pueden generar lecturas falsas
-- Superficies muy oscuras o muy brillantes pueden afectar la precisión
-
----
-
-*Este documento se actualiza con cada hito importante del proyecto.*  
-*Para detalles técnicos: ver `DOCUMENTACION_ROS2.md` y `DOCUMENTACION_CONVERSACIONAL.md`*
