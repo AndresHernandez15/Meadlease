@@ -80,6 +80,12 @@ Toda la documentación técnica está en [`docs/`](docs/):
 
 ---
 
+## 🔒 Seguridad
+
+Ver [`SECURITY.md`](SECURITY.md) para entender qué archivos están excluidos del repo y por qué, y qué debes hacer después de hacer `git pull`.
+
+---
+
 ## 📅 Deadline
 
 - **Robot funcional:** 1 de mayo de 2026
