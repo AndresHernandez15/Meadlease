@@ -1,0 +1,13 @@
+PyAudio~=0.2.14
+vosk
+webrtcvad-wheels
+pvporcupine
+numpy
+sounddevice
+python-dotenv
+
+# Cloud services
+groq
+google-genai
+openai
+azure-cognitiveservices-speech
