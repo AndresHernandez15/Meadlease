@@ -1,30 +1,30 @@
-# 🤖 DOCUMENTACIÓN TÉCNICA ROS2
-## Robot Asistente Inteligente para el Cuidado de la Salud en el Hogar
+# DOCUMENTACIÓN TÉCNICA ROS2
+## Robot Asistente Médico Domiciliario Meadlese
 
 > **Audiencia:** Andrés (líder software), Juan (apoyo)  
 > **Framework:** ROS2 Humble Hawksbill  
 > **Sistema:** Ubuntu Desktop 22.04.5 LTS — Dell Inspiron 3421  
-> **Última actualización:** 2026-02-26  
+> **Última actualización:** 2026-03-10
 
 ---
 
-## 📋 ÍNDICE
+## ÍNDICE
 
-1. [Configuración del Sistema](#configuración-del-sistema)
-2. [Workspace y Estructura de Paquetes](#workspace-y-estructura-de-paquetes)
-3. [Kinect V2 en ROS2](#kinect-v2-en-ros2)
-4. [SLAM con RTAB-Map](#slam-con-rtab-map)
-5. [Navegación con Nav2](#navegación-con-nav2)
-6. [Arquitectura de Nodos (Target)](#arquitectura-de-nodos-target)
-7. [Topics, Services y Actions](#topics-services-y-actions)
-8. [TF Tree](#tf-tree)
-9. [Comunicación con Microcontroladores](#comunicación-con-microcontroladores)
-10. [Problemas Conocidos y Soluciones](#problemas-conocidos-y-soluciones)
-11. [Comandos de Referencia Rápida](#comandos-de-referencia-rápida)
+1. [Configuración del Sistema](#1-configuración-del-sistema)
+2. [Workspace y Estructura de Paquetes](#2-workspace-y-estructura-de-paquetes)
+3. [Kinect V2 en ROS2](#3-kinect-v2-en-ros2)
+4. [SLAM con RTAB-Map](#4-slam-con-rtab-map)
+5. [Navegación con Nav2](#5-navegación-con-nav2)
+6. [Arquitectura de Nodos (Target)](#6-arquitectura-de-nodos-target)
+7. [Topics, Services y Actions](#7-topics-services-y-actions)
+8. [TF Tree](#8-tf-tree)
+9. [Comunicación con Microcontroladores](#9-comunicación-con-microcontroladores)
+10. [Problemas Conocidos y Soluciones](#10-problemas-conocidos-y-soluciones)
+11. [Comandos de Referencia Rápida](#11-comandos-de-referencia-rápida)
 
 ---
 
-## CONFIGURACIÓN DEL SISTEMA
+## 1. CONFIGURACIÓN DEL SISTEMA
 
 ### Software Instalado
 
@@ -59,8 +59,9 @@ ros-humble-tf2-tools
 ```bash
 # Agregar al ~/.bashrc
 source /opt/ros/humble/setup.bash
-source ~/ros2_ws/install/setup.bash
+source ~/Meadlease/ros2_ws/install/setup.bash
 export ROS_DOMAIN_ID=0
+export ROS_LOCALHOST_ONLY=1
 ```
 
 ### Información del PC
@@ -68,21 +69,22 @@ export ROS_DOMAIN_ID=0
 ```
 Usuario Ubuntu:  robot
 Hostname:        robot-brain
-IP Local:        192.168.20.42
-Kinect Serial:   204763633847
+Workspace:       ~/Meadlease/ros2_ws
+Kinect Serial:   204763633847 / 299150235147
 ```
 
 ---
 
-## WORKSPACE Y ESTRUCTURA DE PAQUETES
+## 2. WORKSPACE Y ESTRUCTURA DE PAQUETES
 
 ### Estructura Actual
 
 ```
-~/ros2_ws/
+~/Meadlease/ros2_ws/
 ├── src/
 │   ├── robot_medical/               # PAQUETE PRINCIPAL ⭐
 │   │   ├── launch/
+│   │   │   ├── slam_real_kinect.launch.py
 │   │   │   ├── slam_simulation.launch.py
 │   │   │   └── navigation_simulation.launch.py
 │   │   ├── config/                  # YAML configs (en desarrollo)
@@ -93,6 +95,7 @@ Kinect Serial:   204763633847
 │   │
 │   ├── kinect2_ros2/                # Driver Kinect V2
 │   │   ├── kinect2_bridge/
+│   │   ├── kinect2_calibration/
 │   │   └── kinect2_registration/
 │   │
 │   └── mi_robot/                    # Paquete pruebas iniciales (legacy)
@@ -139,25 +142,30 @@ robot_medical/
 
 ```bash
 # Compilar solo robot_medical
-cd ~/ros2_ws
+cd ~/Meadlease/ros2_ws
 colcon build --packages-select robot_medical
 source install/setup.bash
 
+# Compilar paquetes propios (más rápido)
+colcon build --symlink-install \
+  --packages-select robot_medical mi_robot \
+              kinect2_registration kinect2_bridge
+
 # Compilar todo el workspace
-colcon build
+colcon build --symlink-install
 source install/setup.bash
 
 # Limpiar y recompilar desde cero
 rm -rf build/ install/ log/
-colcon build
+colcon build --symlink-install
 
 # Ver estructura del workspace
-tree ~/ros2_ws/src -L 2
+tree ~/Meadlease/ros2_ws/src -L 2
 ```
 
 ---
 
-## KINECT V2 EN ROS2
+## 3. KINECT V2 EN ROS2
 
 ### Estado: ✅ Funcionando
 
@@ -228,7 +236,7 @@ ros2 topic hz /kinect2/sd/points
 
 ---
 
-## SLAM CON RTAB-MAP
+## 4. SLAM CON RTAB-MAP
 
 ### Estado: ⏳ Funcionando, en optimización
 
@@ -280,7 +288,7 @@ ros2 launch rtabmap_launch rtabmap.launch.py \
 
 ```bash
 # Durante el mapeo, guardar en formato compatible con Nav2
-ros2 run nav2_map_server map_saver_cli -f ~/ros2_ws/src/robot_medical/maps/apartamento
+ros2 run nav2_map_server map_saver_cli -f ~/Meadlease/ros2_ws/src/robot_medical/maps/apartamento
 
 # Genera:
 # apartamento.pgm    → imagen del mapa (blanco=libre, negro=ocupado, gris=desconocido)
@@ -303,7 +311,7 @@ htop
 
 ---
 
-## NAVEGACIÓN CON NAV2
+## 5. NAVEGACIÓN CON NAV2
 
 ### Estado: ❌ Pendiente pruebas en robot físico
 
@@ -340,11 +348,11 @@ inflation_radius: 0.35      # Margen alrededor de obstáculos
 
 ### Mapa del Apartamento (Pendiente)
 
-El mapa real del apartamento de prueba está pendiente de ser generado cuando el robot esté físicamente armado. Los mapas de simulación se encuentran en `maps/` pero no representan el entorno real.
+El mapa real del apartamento de prueba está pendiente de ser generado cuando el robot esté físicamente armado. Los mapas de prueba actuales (`mi_primer_mapa.pgm/yaml`) se encuentran en `~/Meadlease/ros2_ws/src/robot_medical/maps/` pero no representan el entorno real de despliegue.
 
 ---
 
-## ARQUITECTURA DE NODOS (TARGET)
+## 6. ARQUITECTURA DE NODOS (TARGET)
 
 ### Diagrama de Capas
 
@@ -408,7 +416,7 @@ Estados:
 
 ---
 
-## TOPICS, SERVICES Y ACTIONS
+## 7. TOPICS, SERVICES Y ACTIONS
 
 ### Topics de Entrada (Sensores)
 
@@ -469,7 +477,7 @@ Estados:
 
 ---
 
-## TF TREE
+## 8. TF TREE
 
 ### Estado Actual
 
@@ -527,7 +535,7 @@ ros2 run tf2_ros tf2_echo base_link kinect2_rgb_optical_frame
 
 ---
 
-## COMUNICACIÓN CON MICROCONTROLADORES
+## 9. COMUNICACIÓN CON MICROCONTROLADORES
 
 ### ESP32 S3 - Movilidad (Próximo a implementar)
 
@@ -591,20 +599,24 @@ class ESP32BridgeNode(Node):
 
 **Estado:** ❌ Pendiente diseño del firmware (espera diseño mecánico)
 
-### MCU Auxiliar (Pendiente Decisión)
+### STM32F411 Blackpill — MCU Auxiliar (Decisión tomada 2026-03-04)
 
-**Opciones bajo evaluación:**
+**Función:** Columna vertebral de comunicaciones. Corre micro-ROS (USB-CDC ↔ PC), enruta comandos por UART a ambos ESP32 y lee botones HMI por GPIO.
 
-| Opción | Protocolo | Ventaja | Desventaja |
-|--------|-----------|---------|------------|
-| STM32F411 Blackpill | UART físico | Interrupciones precisas, muy bajo latencia | Cable adicional, más complejo |
-| ESP32 adicional | ESP-NOW / WiFi | Inalámbrico, más simple | Posible latencia, interferencias |
+**Por qué STM32F411 sobre ESP32 adicional:**
 
-**Decisión pendiente:** Realizar pruebas de ambas opciones y comparar latencia y confiabilidad.
+| Criterio | STM32F411 ✅ | ESP32 adicional ❌ |
+|----------|-------------|-------------------|
+| UARTs hardware | 6 | 2-3 (con conflictos) |
+| DMA por canal | Sí | Limitado |
+| Latencia `/cmd_vel` | Determinista | Variable (WiFi/ESP-NOW) |
+| micro-ROS | Validado ✅ | Compatible, no probado |
+
+**Estado:** micro-ROS base validado ✅ | Integración con ESP32s ❌ (espera robot armado)
 
 ---
 
-## PROBLEMAS CONOCIDOS Y SOLUCIONES
+## 10. PROBLEMAS CONOCIDOS Y SOLUCIONES
 
 ### 1. RTAB-Map Lento (estaba a 0.2 Hz, mejorado)
 
@@ -658,7 +670,7 @@ ros2 run tf2_ros static_transform_publisher 0 0 0.8 0 0 0 base_link kinect_link
 
 ---
 
-## COMANDOS DE REFERENCIA RÁPIDA
+## 11. COMANDOS DE REFERENCIA RÁPIDA
 
 ### Kinect V2
 
@@ -704,25 +716,25 @@ ros2 launch rtabmap_launch rtabmap.launch.py \
     --Grid/RangeMax=2.5"
 
 # Guardar mapa
-ros2 run nav2_map_server map_saver_cli -f ~/ros2_ws/src/robot_medical/maps/apartamento
+ros2 run nav2_map_server map_saver_cli -f ~/Meadlease/ros2_ws/src/robot_medical/maps/apartamento
 ```
 
 ### Workspace
 
 ```bash
 # Compilar paquete específico
-cd ~/ros2_ws
+cd ~/Meadlease/ros2_ws
 colcon build --packages-select robot_medical
 source install/setup.bash
 
 # Compilar todo
-colcon build && source install/setup.bash
+colcon build --symlink-install && source install/setup.bash
 
 # Limpiar todo
-rm -rf build/ install/ log/ && colcon build
+rm -rf build/ install/ log/ && colcon build --symlink-install
 
 # Ver estructura
-tree ~/ros2_ws/src -L 3
+tree ~/Meadlease/ros2_ws/src -L 3
 ```
 
 ### Debugging General
@@ -763,27 +775,27 @@ ros2 run teleop_twist_keyboard teleop_twist_keyboard
 
 ---
 
-## NOTAS PARA AI ASSISTANTS
+## 12. NOTAS DE DESARROLLO
 
-### Cuando generes código Python ROS2:
+### Código Python ROS2
 - Python 3.10 (Ubuntu 22.04)
 - Usar `rclpy`, **nunca** `rospy` (eso es ROS1)
 - Imports específicos: `from geometry_msgs.msg import Twist`
 - PEP8 + type hints + docstrings
 - Un nodo = una responsabilidad
 
-### Contexto de hardware siempre presente:
-- Hardware limitado: i3 CPU, 12 GB RAM → optimización crítica
-- Sin GPU: No usar modelos de visión que requieran CUDA
-- QoS Best Effort para topics del Kinect
-- Velocidad máxima `/cmd_vel`: linear.x <= 0.25, angular.z <= 0.5
+### Restricciones de hardware
+- CPU i3-3227U, 12 GB RAM → optimización crítica
+- Sin GPU: no usar modelos de visión que requieran CUDA
+- QoS Best Effort para todos los topics del Kinect
+- Velocidad máxima `/cmd_vel`: `linear.x <= 0.25`, `angular.z <= 0.5`
 
-### Estado del TF tree:
+### Estado del TF tree
 - `kinect2_rgb_optical_frame` ✅ disponible
-- `base_link` ❌ aún no publicado
-- Usar `kinect2_rgb_optical_frame` como `frame_id` para RTAB-Map hasta tener URDF
+- `base_link` ❌ aún no publicado (requiere URDF)
+- Usar `kinect2_rgb_optical_frame` como `frame_id` para RTAB-Map hasta tener URDF completo
 
 ---
 
-*Ver `PROYECTO_GENERAL.md` para contexto completo del proyecto.*  
-*Ver `DOCUMENTACION_CONVERSACIONAL.md` para el módulo Atlas/conversacional.*
+*Para contexto general del proyecto: ver `PROYECTO_GENERAL.md`*  
+*Para el módulo conversacional Atlas: ver `DOCUMENTACION_CONVERSACIONAL.md`*
