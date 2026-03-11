@@ -1,0 +1,75 @@
+# =============================================================================
+# ROS2 Workspace - .gitignore
+# Proyecto: Robot Médico con Kinect2 y SLAM (RTAB-Map)
+# =============================================================================
+
+# --- Colcon build outputs ---
+build/
+install/
+log/
+
+# --- Python virtual environment ---
+.venv/
+venv/
+env/
+.env
+
+# --- Python cache ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+*.egg
+
+# --- CMake / C++ build artifacts ---
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.o
+*.a
+*.so
+*.so.*
+*.dylib
+*.out
+
+# --- libfreenect2: librería externa, se instala manualmente (ver README) ---
+src/libfreenect2/
+
+# --- Archivos de mapa binarios grandes (opcional: usar Git LFS) ---
+# maps/*.pgm
+# src/robot_medical/maps/*.pgm
+
+# --- IDEs y editores ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# --- Logs y temporales ---
+*.log
+*.tmp
+*.bak
+*.orig
+
+# --- ROS / ROS2 específicos ---
+*.pyc
+devel/
+.catkin_workspace
+
+# --- Base de datos RTAB-Map (generada en runtime) ---
+*.db
+
+# --- Archivos de credenciales o configuración sensible ---
+*.pem
+*.key
+*.secret
+.env.local
+.env.*.local
