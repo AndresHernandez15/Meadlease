@@ -1,0 +1,4 @@
+# Ignore all database files in this directory, but keep the folder
+*.db
+*.sqlite
+*.sqlite3
