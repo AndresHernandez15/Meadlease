@@ -1,0 +1,8 @@
+# Evitar que uvcvideo reclame el Kinect v2
+# Este archivo debe copiarse a /etc/udev/rules.d/
+
+# Kinect v2 - Color camera (045e:02c4)
+SUBSYSTEM=="usb", ATTR{idVendor}=="045e", ATTR{idProduct}=="02c4", ENV{ID_MM_DEVICE_IGNORE}="1", RUN+="/bin/sh -c 'echo -1 > /sys/\$devpath/bConfigurationValue'"
+
+# Alternativa: usar DRIVER para prevenir uvcvideo
+SUBSYSTEM=="usb", ATTR{idVendor}=="045e", ATTR{idProduct}=="02c4", DRIVER=="uvcvideo", RUN+="/bin/sh -c 'echo $kernel > /sys/bus/usb/drivers/uvcvideo/unbind'"
