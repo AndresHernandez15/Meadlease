@@ -28,6 +28,8 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            'kinect_mic_test = robot_medical.kinect_mic_test:main',
+            'atlas_ros2_node = robot_medical.atlas_ros2_node:main',
         ],
     },
 )

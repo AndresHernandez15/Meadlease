@@ -2,7 +2,7 @@
 ## Documentación Técnica General del Proyecto
 
 > **Universidad Tecnológica de Bolívar** · Ingeniería Mecatrónica · Proyecto de Grado  
-> **Última actualización:** 2026-03-09  
+> **Última actualización:** 2026-03-16  
 > **Deadline robot funcional:** 1 de mayo de 2026  
 > **Entrega académica final:** Finales de mayo de 2026
 
@@ -244,7 +244,7 @@ Desarrollar un robot asistente médico inteligente para monitoreo de signos vita
 - **BD local:** SQLite — historial de salud, horarios de medicación, usuarios registrados
 - **Principio ético:** Nunca diagnostica ni prescribe; siempre deriva al médico
 
-**Estado:** Pipeline completo en Windows ✅ | Port a ROS2 ❌
+**Estado:** Pipeline completo en Windows ✅ | Port a ROS2 🔄 (en progreso)
 
 ---
 
@@ -343,7 +343,7 @@ El STM32 corre como nodo ROS2 nativo vía **micro-ROS**: se suscribe a `/cmd_vel
 
 ## 9. ESTADO ACTUAL DEL PROYECTO
 
-> **Última actualización:** 2026-03-09
+> **Última actualización:** 2026-03-16
 
 | Módulo | Componente | Estado |
 |--------|------------|--------|
@@ -354,7 +354,7 @@ El STM32 corre como nodo ROS2 nativo vía **micro-ROS**: se suscribe a `/cmd_vel
 | **Visión** | Detección de personas + reconocimiento facial | ✅ Completado (Windows) — port ROS2 pendiente |
 | **Conversacional** | Pipeline completo (Vosk + Groq + Azure) | ✅ Completado (Windows) |
 | **Conversacional** | FSM + main.py — validación final | ✅ Completado |
-| **Conversacional** | Port a ROS2 | ❌ Pendiente |
+| **Conversacional** | Port a ROS2 | 🔄 **En progreso** (`atlas_ros2_node` creado) |
 | **Dispensador** | Diseño mecánico | ⏳ En progreso (Linda + Sergio) |
 | **Dispensador** | Construcción física + firmware | ❌ Pendiente |
 | **Signos Vitales** | Sensores conseguidos | ⏳ Pendiente calibración y firmware |
@@ -432,4 +432,3 @@ El STM32 corre como nodo ROS2 nativo vía **micro-ROS**: se suscribe a `/cmd_vel
 *Para documentación técnica detallada por módulo, ver:*  
 *→ `DOCUMENTACION_CONVERSACIONAL.md` (sistema Atlas)*  
 *→ `DOCUMENTACION_ROS2.md` (ROS2, Nav2, Kinect, micro-ROS)*
-

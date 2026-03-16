@@ -2,10 +2,10 @@
 ## Robot Asistente Médico Domiciliario Meadlese
 
 > **Audiencia:** Andrés (líder software)  
-> **Estado:** Módulo completo y validado en Windows · Port a ROS2 pendiente  
+> **Estado:** Módulo completo y validado en Windows · Port a ROS2 en progreso  
 > **Plataforma actual:** Windows 11 + Python 3.10  
 > **Plataforma destino:** Ubuntu 22.04 + ROS2 Humble  
-> **Última actualización:** 2026-03-09
+> **Última actualización:** 2026-03-16
 
 ---
 
@@ -136,61 +136,36 @@ PORCUPINE_ACCESS_KEY=...
 
 ## 4. ESTRUCTURA DEL PROYECTO
 
+El módulo `atlas` ha sido integrado dentro del paquete ROS2 `robot_medical`.
+
 ```
-atlas/                                    # Módulo conversacional (Meadlease/atlas/)
-├── README.md
+ros2_ws/src/robot_medical/
+└── robot_medical/
+    ├── atlas/                          # MÓDULO CONVERSACIONAL INTEGRADO
+    │   ├── __init__.py
+    │   ├── baymax_voice/
+    │   │   ├── __init__.py
+    │   │   ├── main.py                 # Orquestador original (ahora usado por el nodo)
+    │   │   ├── audio/
+    │   │   ├── cloud/
+    │   │   ├── config/
+    │   │   ├── local/
+    │   │   ├── logic/
+    │   │   └── utils/
+    │   ├── data/
+    │   │   ├── patient.db
+    │   │   └── audio/
+    │   └── scripts/
+    │       ├── populate_test_db.py
+    │       └── generate_confirmation_audio.py
+    │
+    └── atlas_ros2_node.py              # NUEVO NODO WRAPPER ROS2
+
+# Archivos de configuración y dependencias que permanecen fuera del workspace de ROS2
+# por ahora, para referencia.
+atlas/
 ├── requirements.txt
-├── .env                                  <- API keys (local, nunca al repo)
-├── .env.example                          <- Plantilla pública
-├── data/
-│   ├── patient.db                        <- Base de datos SQLite
-│   └── audio/
-│       └── confirmation.wav              <- "¿Sí?" voz de Camila
-├── scripts/
-│   ├── populate_test_db.py
-│   └── generate_confirmation_audio.py
-└── baymax_voice/
-    ├── main.py                           <- Orquestador principal
-    ├── config/
-    │   └── settings.py
-    ├── audio/
-    │   ├── capture.py
-    │   ├── vad.py
-    │   ├── noise_filter.py
-    │   ├── playback.py
-    │   └── audio_buffer.py
-    ├── local/
-    │   ├── wake_word.py                  <- Porcupine ("Atlas")
-    │   └── commands.py                   <- Vosk (9 comandos)
-    ├── cloud/
-    │   ├── speech_to_text.py             <- Groq Whisper + fallback 4 niveles
-    │   ├── groq_llm.py                   <- Groq LLM + fallback 6 niveles
-    │   ├── text_to_speech.py             <- Azure TTS + caché + SSML
-    │   └── llm_config.py                 <- System prompt + build_patient_context()
-    ├── logic/
-    │   ├── state_machine.py              <- FSM 6 estados
-    │   └── medical_db.py                 <- CRUD SQLite + queries compuestas
-    ├── utils/
-    │   ├── logger.py
-    │   └── events.py                     <- Bus de eventos thread-safe
-    └── test/
-        ├── README_TESTS.md
-        ├── test_quick_system.py
-        ├── test_integration_full.py
-        ├── test_vad.py
-        ├── test_wake_word.py
-        ├── test_commands.py
-        ├── test_groq.py
-        ├── test_tts.py
-        ├── test_tts_interactive.py
-        ├── test_groq_fallback.py
-        ├── test_groq_whisper.py
-        ├── test_context_prompt.py
-        ├── test_camila_validation.py
-        ├── test_confirmation_audio.py
-        ├── benchmark_latency.py
-        ├── benchmark_llm_models.py
-        └── benchmark_quality_llm.py
+└── .env
 ```
 
 ---
@@ -265,6 +240,7 @@ SQLite con 5 tablas, 3 capas (init, CRUD, queries compuestas). `get_proxima_dosi
 
 ### utils/events.py
 Bus de eventos con `queue.Queue`. Eventos: `WAKE_WORD_DETECTED`, `SPEECH_END`, `COMMAND_DETECTED`, `STATE_CHANGED`, `SPEAKING_START`, `PLAYBACK_DONE`.
+**Actualización:** Se ha añadido un hook de callbacks para permitir que el nodo ROS2 se suscriba a estos eventos sin consumir la cola, actuando como un "bridge".
 
 ---
 
@@ -417,7 +393,7 @@ Regenerar con: `python scripts/generate_confirmation_audio.py`
 
 ## 10. ESTADO ACTUAL Y PENDIENTES
 
-### Completado ✅ (2026-03-09)
+### Completado ✅ (2026-03-16)
 
 **Audio:** capture, VAD, noise_filter, playback, audio_buffer, wake word Porcupine, comandos Vosk (9 comandos / 5 categorías), beep bloqueante.
 
@@ -425,7 +401,7 @@ Regenerar con: `python scripts/generate_confirmation_audio.py`
 
 **Lógica:** FSM 6 estados validada · `medical_db.py` (5 tablas, queries con tiempos relativos) · integración BD → LLM validada en conversación real.
 
-**Infraestructura:** `main.py` funcional · logging por módulo · bus de eventos thread-safe · `settings.py` y `llm_config.py` separados.
+**Infraestructura:** `main.py` funcional · logging por módulo · bus de eventos thread-safe con hooks para ROS2 · `settings.py` y `llm_config.py` separados.
 
 **Voz:** Benchmark 8 voces completado · Camila seleccionada e implementada · audio de confirmación "¿Sí?" generado.
 
@@ -436,81 +412,85 @@ Regenerar con: `python scripts/generate_confirmation_audio.py`
 - Rate limiter para protección del tier gratuito de Groq
 - `intent_classifier.py` para mejorar enrutamiento local/cloud
 
+### En Progreso — Port a ROS2 🔄
+
+- **`atlas_ros2_node.py` creado:** Nodo wrapper que lanza Atlas en un thread interno y actúa como bridge.
+- **Integración con `setup.py`:** El nodo ya es un ejecutable de ROS2.
+- **Bridge de eventos:** El nodo se suscribe a eventos de Atlas y los publica como topics ROS2.
+- **Validación de dependencias en Ubuntu:** Pendiente de verificar `Porcupine` y `sounddevice`.
+
 ### Pendientes — post Windows (ROS2) ❌
 
-- Port a Ubuntu 22.04 y validación de dependencias
-- Convertir `main.py` en nodo ROS2 (`AtlasNode`)
-- Topics ROS2 para integración con navegación y hardware
-- HMI dashboard para visualización de datos del paciente
-- Reconocimiento facial para `patient_id` automático
+- Topics ROS2 para integración completa con navegación y hardware.
+- HMI dashboard para visualización de datos del paciente.
+- Reconocimiento facial para `patient_id` automático.
 
 ---
 
 ## 11. PLAN DE MIGRACIÓN A ROS2
 
-### Interfaz del nodo ROS2 (`atlas_ros2_node.py`)
+### Interfaz del nodo ROS2 (`atlas_ros2_node.py`) — Implementación en progreso
 
-```python
-# Topics que publica (Atlas → Robot)
-/atlas/detected_command    # std_msgs/String   Comando local detectado
-/atlas/intent              # std_msgs/String   Intent JSON
-/robot/speak               # std_msgs/String   TTS proactivo del robot
-/atlas/listening           # std_msgs/Bool     Estado de escucha
-/atlas/active              # std_msgs/Bool     Estado general del sistema
+El nodo `atlas_ros2_node.py` ya ha sido creado y actúa como un wrapper. Lanza el `main.py` original en un thread separado y usa un sistema de callbacks en el `EventBus` para actuar como bridge.
 
-# Topics a los que se suscribe (Robot → Atlas)
-/health/bpm                # std_msgs/Int32
-/health/spo2               # std_msgs/Int32
-/health/temperature        # std_msgs/Float32
-/patient/identified        # std_msgs/String   patient_id de reconocimiento facial
-/hmi/state                 # std_msgs/String   Notificaciones de estado desde la HMI
+**Topics que publica (Atlas → Robot):**
+- `/atlas/listening` (`std_msgs/Bool`): `true` cuando Atlas está en estado `LISTENING`.
+- `/atlas/detected_command` (`std_msgs/String`): Publica el comando local detectado por Vosk.
+- `/robot/speak` (`std_msgs/String`): Publica el texto que Atlas va a decir, permitiendo que otros nodos reaccionen.
 
-# Services
-/atlas/say                 # texto → OK/error  (TTS síncrono)
-/atlas/ask                 # pregunta → respuesta LLM
-```
+**Topics a los que se suscribe (Robot → Atlas):**
+- `/health/bpm` (`std_msgs/Int32`)
+- `/health/spo2` (`std_msgs/Int32`)
+- `/health/temperature` (`std_msgs/Float32`)
+- `/patient/identified` (`std_msgs/String`): Notifica a Atlas la identidad del paciente.
 
 ### Pasos de migración
 
-1. Instalar Ubuntu 22.04 + ROS2 Humble + virtualenv Python 3.10
-2. Verificar compatibilidad de cada dependencia Python en Ubuntu (especialmente Porcupine y PyAudio)
-3. Convertir `main.py` en clase `AtlasNode(Node)` de ROS2
-4. Reemplazar bus de eventos interno por topics ROS2
-5. Conectar `medical_db` con datos reales de sensores (vía topics `/health/*`)
-6. Agregar al launch file del robot
-7. Pruebas de integración con hardware real
+1.  Instalar Ubuntu 22.04 + ROS2 Humble + virtualenv Python 3.10
+2.  Verificar compatibilidad de cada dependencia Python en Ubuntu (especialmente Porcupine y PyAudio) — **PENDIENTE**
+3.  Convertir `main.py` en clase `AtlasNode(Node)` de ROS2 — **EN PROGRESO** (se optó por un wrapper para minimizar cambios en el código original validado).
+4.  Reemplazar bus de eventos interno por topics ROS2 — **EN PROGRESO** (se usa un bridge de callbacks).
+5.  Conectar `medical_db` con datos reales de sensores (vía topics `/health/*`) — **PENDIENTE**
+6.  Agregar al launch file del robot — **PENDIENTE**
+7.  Pruebas de integración con hardware real — **PENDIENTE**
 
 ---
 
 ## 12. GUÍA DE PRUEBAS
 
-### Arrancar el sistema completo
+### Arrancar el sistema (Modo ROS2)
+
+Asegúrate de haber compilado el workspace (`colcon build`) y sourced el `setup.bash`.
 
 ```bash
-cd Meadlease/atlas
-python baymax_voice/main.py
-# Di "atlas" para activar, luego habla directamente
+# En una terminal, lanza el nodo de Atlas
+ros2 run robot_medical atlas_ros2_node
+
+# En otra terminal, puedes escuchar los topics que publica
+ros2 topic echo /atlas/listening
+ros2 topic echo /robot/speak
+ros2 topic echo /atlas/detected_command
+
+# Para probar la identificación de un paciente
+ros2 topic pub /patient/identified std_msgs/msg/String "data: 'Juan Pérez'" --once
 ```
 
-### Pruebas individuales
+### Pruebas individuales (Legacy — pueden requerir ajustes de path)
+
+Estos tests siguen siendo válidos para probar la lógica interna de Atlas, pero pueden necesitar que se ajusten sus `sys.path` para encontrar los módulos en su nueva ubicación.
 
 ```bash
-python -m baymax_voice.test.test_quick_system       # Verificación rápida
-python -m baymax_voice.test.test_integration_full   # Pipeline completo
-python -m baymax_voice.test.test_vad                # Audio y VAD
-python -m baymax_voice.test.test_wake_word          # Wake word
-python -m baymax_voice.test.test_commands           # Comandos Vosk
-python -m baymax_voice.test.test_groq               # LLM
-python -m baymax_voice.test.test_tts_interactive    # TTS Camila
-python -m baymax_voice.test.test_context_prompt     # Contexto BD → LLM
-python -m baymax_voice.test.test_camila_validation  # Validar voz Camila
-python -m baymax_voice.test.test_confirmation_audio # Validar audio "¿Sí?"
+# Desde la raíz del workspace: ros2_ws/
+python -m src.robot_medical.robot_medical.atlas.baymax_voice.test.test_quick_system
+# ... y así sucesivamente para los otros tests.
 ```
 
 ### Poblar base de datos de prueba
 
+El path al script ha cambiado.
+
 ```bash
-python scripts/populate_test_db.py
+python src/robot_medical/robot_medical/atlas/scripts/populate_test_db.py
 ```
 
 ---
@@ -529,4 +509,3 @@ python scripts/populate_test_db.py
 
 *Para contexto general del proyecto: ver `PROYECTO_GENERAL.md`*  
 *Para arquitectura ROS2, Nav2, Kinect y micro-ROS: ver `DOCUMENTACION_ROS2.md`*
-

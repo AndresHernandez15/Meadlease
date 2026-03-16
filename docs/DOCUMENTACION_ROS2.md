@@ -2,10 +2,10 @@
 ## Robot Asistente Médico Domiciliario Meadlese
 
 > **Audiencia:** Andrés (líder software), Juan (apoyo visión)
-> **Estado:** Kinect ✅ · SLAM ⏳ · Nav2 ❌ · Nodos médicos ❌ · Atlas-ROS2 ❌
+> **Estado:** Kinect ✅ · SLAM ⏳ · Nav2 ❌ · Nodos médicos ❌ · Atlas-ROS2 🔄
 > **Plataforma:** Ubuntu 22.04.5 LTS · ROS2 Humble Hawksbill · Python 3.10
 > **Hardware:** Dell Inspiron 3421 · i3-3227U · 12 GB RAM
-> **Última actualización:** 2026-03-10
+> **Última actualización:** 2026-03-16
 
 ---
 
@@ -128,6 +128,10 @@ robot_medical/
 │   └── [mapa real del apartamento]
 └── robot_medical/                     # Módulos Python
     ├── __init__.py
+    ├── atlas/                         # Módulo conversacional Atlas
+    │   ├── baymax_voice/
+    │   └── ...
+    ├── atlas_ros2_node.py             # Bridge Atlas conversacional → ROS2
     ├── stm32_bridge_node.py           # /cmd_vel → Serial → STM32 → Motores
     ├── ultrasonic_node.py             # Lectura sensores obstáculos
     ├── vital_signs_node.py            # Signos vitales desde ESP32
@@ -135,8 +139,7 @@ robot_medical/
     ├── person_detector_node.py        # Detección de personas (Kinect)
     ├── face_recognition_node.py       # Reconocimiento facial
     ├── state_machine_node.py          # Coordinador central
-    ├── scheduler_node.py              # Horarios medicamentos
-    └── atlas_ros2_node.py             # Bridge Atlas conversacional → ROS2
+    └── scheduler_node.py              # Horarios medicamentos
 ```
 
 ### Comandos de Build
@@ -424,7 +427,9 @@ ERROR        → Error, requiere intervención
 
 #### `atlas_ros2_node.py` — Bridge conversacional
 
-Encapsula el sistema Atlas existente como nodo ROS2. Ver sección 11 de `DOCUMENTACION_CONVERSACIONAL.md` para la interfaz completa de topics y services.
+**Estado:** 🔄 En progreso
+
+Encapsula el sistema Atlas existente como nodo ROS2. Se ha creado el nodo `atlas_ros2_node.py` que lanza el `main.py` de Atlas en un thread interno. Se comunica con el resto del sistema ROS2 publicando y suscribiéndose a topics. Ver sección 11 de `DOCUMENTACION_CONVERSACIONAL.md` para la interfaz completa.
 
 ---
 
@@ -594,7 +599,7 @@ El STM32 corre como nodo ROS2 nativo vía micro-ROS (USB-CDC): se suscribe a `/c
 
 ## 10. ESTADO ACTUAL Y PENDIENTES
 
-> **Última actualización:** 2026-03-10
+> **Última actualización:** 2026-03-16
 
 ### Resumen por Componente
 
@@ -610,7 +615,7 @@ El STM32 corre como nodo ROS2 nativo vía micro-ROS (USB-CDC): se suscribe a `/c
 | **`medication_node`** | ❌ Pendiente | Espera diseño mecánico del dispensador |
 | **`person_detector_node`** | ❌ Pendiente | Port desde Windows a ROS2 |
 | **`face_recognition_node`** | ❌ Pendiente | Port desde Windows a ROS2 |
-| **`atlas_ros2_node`** | ❌ Pendiente | Atlas completo en Windows ✅; port a ROS2 pendiente |
+| **`atlas_ros2_node`** | 🔄 **En progreso** | Atlas completo en Windows ✅; nodo wrapper para ROS2 creado. |
 | **`state_machine_node`** | ❌ Pendiente | Diseñado; pendiente implementación |
 | **`scheduler_node`** | ❌ Pendiente | Lógica de horarios en BD ✅; nodo ROS2 pendiente |
 | **micro-ROS STM32** | ✅ Base validado | Comunicación básica OK; integración con ESP32 pendiente |
