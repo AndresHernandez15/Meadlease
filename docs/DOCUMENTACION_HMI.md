@@ -1,4 +1,4 @@
-# INTERFAZ HUMANO-MÁQUINA (HMI) — ATLAS FACE
+# INTERFAZ HUMANO-MÁQUINA (HMI)
 ## Robot Asistente Médico Domiciliario Meadlese
 
 > **Audiencia:** Andrés (líder software)  
