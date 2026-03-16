@@ -284,13 +284,14 @@ Desarrollar un robot asistente médico inteligente para monitoreo de signos vita
 
 ### 7.6 HMI e Interfaz de Usuario
 
-**Responsable:** Andrés — *se desarrolla al final del proyecto*
+**Responsable:** Andrés
+**Documentación completa:** `DOCUMENTACION_HMI.md`
 
-- Pantalla del portátil en modo kiosco (aplicación desktop — tecnología TBD: PyQt u otro)
-- Interacción: comandos de voz (Atlas) + botones físicos / trackpad
-- Funciones: ver historial, programar medicación, registrar usuarios, recibir alertas
+- **Cara expresiva de Baymax:** Pantalla de estado permanente del robot, con animaciones que comunican visualmente qué está haciendo el robot en cada momento.
+- **Dashboard médico:** Panel de datos del paciente, accesible por comando de voz o toque del trackpad.
+- **Tecnología:** Aplicación web local (FastAPI + HTML/CSS/JS) corriendo en modo kiosko.
 
-**Estado:** ❌ Pendiente
+**Estado:** ❌ Pendiente (módulo separado)
 
 ---
 

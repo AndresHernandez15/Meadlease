@@ -768,3 +768,4 @@ ros2 run teleop_twist_keyboard teleop_twist_keyboard
 
 *Para contexto general del proyecto: ver `PROYECTO_GENERAL.md`*
 *Para el sistema conversacional Atlas: ver `DOCUMENTACION_CONVERSACIONAL.md`*
+*Para la interfaz visual (Atlas Face): ver `DOCUMENTACION_HMI.md`*

@@ -463,6 +463,7 @@ Regenerar con: `python scripts/generate_confirmation_audio.py`
 /health/spo2               # std_msgs/Int32
 /health/temperature        # std_msgs/Float32
 /patient/identified        # std_msgs/String   patient_id de reconocimiento facial
+/hmi/state                 # std_msgs/String   Notificaciones de estado desde la HMI
 
 # Services
 /atlas/say                 # texto → OK/error  (TTS síncrono)
