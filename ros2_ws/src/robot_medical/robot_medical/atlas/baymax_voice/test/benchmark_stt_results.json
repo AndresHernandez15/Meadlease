@@ -1,0 +1,33 @@
+{
+  "timestamp": "2026-02-23 14:14:53",
+  "groq": {
+    "whisper-large-v3-turbo": {
+      "success": true,
+      "text": "Hola, probando audio, iniciando.",
+      "latency": 1.8372745513916016,
+      "api_key_used": "principal",
+      "language": "Spanish",
+      "text_length": 32,
+      "words": 4
+    },
+    "whisper-large-v3": {
+      "success": true,
+      "text": "Hola, probando audio, iniciando.",
+      "latency": 0.8190100193023682,
+      "api_key_used": "principal",
+      "language": "Spanish",
+      "text_length": 32,
+      "words": 4
+    }
+  },
+  "azure": {
+    "success": true,
+    "text": "Hola probando audio iniciando.",
+    "latency": 2.577496290206909,
+    "confidence": 0.95,
+    "text_length": 30,
+    "words": 4
+  },
+  "audio_size_bytes": 160000,
+  "audio_duration_seconds": 5.0
+}

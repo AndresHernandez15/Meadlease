@@ -1,0 +1,51 @@
+{
+  "timestamp": "2026-02-27 14:09:05",
+  "n_runs": 3,
+  "stt": {
+    "component": "STT (Groq Whisper)",
+    "runs": 3,
+    "avg_ms": 642.533599999903,
+    "min_ms": 377.86079999932554,
+    "max_ms": 1118.654300000344,
+    "p50_ms": 431.08570000003965,
+    "last_transcript": "Resources en el mercadoanic."
+  },
+  "llm": {
+    "component": "LLM (Groq Llama 3.3 70B)",
+    "runs": 15,
+    "avg_ms": 428.28517333315784,
+    "min_ms": 319.6184999997058,
+    "max_ms": 634.3479000006482,
+    "p50_ms": 409.6282999998948,
+    "avg_tokens_output": 26.066666666666666
+  },
+  "tts": {
+    "component": "TTS (Azure Salome 24kHz)",
+    "runs": 15,
+    "avg_ms": 1137.4612533333373,
+    "min_ms": 902.6943000008032,
+    "max_ms": 1347.8302999992593,
+    "p50_ms": 1144.9523999999656,
+    "avg_audio_duration_s": 4.264175,
+    "avg_audio_size_kb": 199.883203125,
+    "real_time_factor": 0.2667482580647692
+  },
+  "pipeline": {
+    "component": "Pipeline completo (STT+LLM+TTS)",
+    "runs": 3,
+    "pipeline_latencies_ms": [
+      2640.7529000007344,
+      1874.0326999995887,
+      2343.1610999996337
+    ],
+    "avg_total_ms": 2285.982233333319,
+    "avg_stt_ms": 697.3401999997199,
+    "avg_llm_ms": 417.08913333301706,
+    "avg_tts_ms": 1171.5471999996225,
+    "pct_stt": 30.505057731043212,
+    "pct_llm": 18.245510715314527,
+    "pct_tts": 51.249182207830366
+  },
+  "bottleneck": "tts",
+  "bottleneck_pct": 51.249182207830366
+}

@@ -1,0 +1,198 @@
+{
+  "benchmark_date": "2026-03-02 08:50:50",
+  "reason": "Deprecacion llama-4-maverick-17b-128e-instruct (9 marzo 2026)",
+  "n_runs_per_phrase": 2,
+  "sleep_between_s": 1.5,
+  "models_tested": 8,
+  "results": [
+    {
+      "model": "llama-3.1-8b-instant",
+      "avg_ms": 874.4,
+      "min_ms": 359.6,
+      "max_ms": 2607.4,
+      "p50_ms": 465.8,
+      "success_rate_pct": 100.0,
+      "avg_tokens_output": 43.5,
+      "total_calls": 10,
+      "successes": 10,
+      "deprecated": false,
+      "sample_responses": [
+        {
+          "phrase": "¿Cuándo es mi próxima dosis de medicamento?",
+          "response": "Lo siento, pero no tengo acceso a tu historial médico actualizado. Es posible que necesites consultar a tu médico o verificar tu caja de medicamentos para determinar la fecha de tu próxima dosis."
+        },
+        {
+          "phrase": "Me duele la cabeza, ¿qué hago?",
+          "response": "Lo siento, no puedo analizar tus síntomas. Si te duele la cabeza, te recomiendo que busques ayuda médica. ¿Puedo ayudarte a programar una cita con tu médico de cabecera?"
+        }
+      ]
+    },
+    {
+      "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+      "avg_ms": 1413.4,
+      "min_ms": 474.8,
+      "max_ms": 3284.5,
+      "p50_ms": 784.7,
+      "success_rate_pct": 100.0,
+      "avg_tokens_output": 39.1,
+      "total_calls": 10,
+      "successes": 10,
+      "deprecated": false,
+      "sample_responses": [
+        {
+          "phrase": "¿Cuándo es mi próxima dosis de medicamento?",
+          "response": "Lo siento, no tengo acceso a tu historial médico o calendario de medicación. Te recomiendo consultar con tu médico o revisar tus registros médicos para obtener esa información."
+        },
+        {
+          "phrase": "Me duele la cabeza, ¿qué hago?",
+          "response": "Tengo registrada tu preocupación. Te recomiendo consultar con un médico para una evaluación adecuada. ¿Cuánto tiempo llevas con el dolor de cabeza? ¿Tienes algún antecedente médico relevante?"
+        }
+      ]
+    },
+    {
+      "model": "openai/gpt-oss-20b",
+      "avg_ms": 1136.9,
+      "min_ms": 417.9,
+      "max_ms": 2765.4,
+      "p50_ms": 1035.3,
+      "success_rate_pct": 100.0,
+      "avg_tokens_output": 97.7,
+      "total_calls": 10,
+      "successes": 10,
+      "deprecated": false,
+      "sample_responses": [
+        {
+          "phrase": "¿Cuándo es mi próxima dosis de medicamento?",
+          "response": ""
+        },
+        {
+          "phrase": "Me duele la cabeza, ¿qué hago?",
+          "response": ""
+        }
+      ]
+    },
+    {
+      "model": "openai/gpt-oss-120b",
+      "avg_ms": 576.8,
+      "min_ms": 510.5,
+      "max_ms": 725.3,
+      "p50_ms": 548.4,
+      "success_rate_pct": 100.0,
+      "avg_tokens_output": 98.9,
+      "total_calls": 10,
+      "successes": 10,
+      "deprecated": false,
+      "sample_responses": [
+        {
+          "phrase": "¿Cuándo es mi próxima dosis de medicamento?",
+          "response": "Lo siento, no tengo acceso a tu agenda de medicación. Te sugiero revisar tu"
+        },
+        {
+          "phrase": "Me duele la cabeza, ¿qué hago?",
+          "response": "Lamento que tengas dolor de"
+        }
+      ]
+    },
+    {
+      "model": "qwen/qwen3-32b",
+      "avg_ms": 879.5,
+      "min_ms": 610.4,
+      "max_ms": 1931.6,
+      "p50_ms": 682.7,
+      "success_rate_pct": 100.0,
+      "avg_tokens_output": 100,
+      "total_calls": 10,
+      "successes": 10,
+      "deprecated": false,
+      "sample_responses": [
+        {
+          "phrase": "¿Cuándo es mi próxima dosis de medicamento?",
+          "response": "<think>\nOkay, the user is asking about their next medication dose. But wait, I don't have access to their medical records or prescription details. I can't check their schedule automatically. I need to inform them that I can't provide that information without more details.\n\nI should ask them to check their prescription label or contact their pharmacist or doctor. It's important to make sure they get the correct information to avoid any mistakes. Also, maybe remind them to keep track of their medications properly. Let"
+        },
+        {
+          "phrase": "Me duele la cabeza, ¿qué hago?",
+          "response": "<think>\nOkay, the user is asking what to do about a headache. First, I need to make sure I don't overstep my role. Since I can't diagnose or recommend treatments, I should stick to general advice. Let them know I can't give a diagnosis but can offer some basic steps. Suggest resting in a quiet, dark room, staying hydrated, and applying a cold compress. Also, mention over-the-counter meds like ibuprofen but clarify that I can't recommend specific"
+        }
+      ]
+    },
+    {
+      "model": "groq/compound-mini",
+      "avg_ms": 1143.4,
+      "min_ms": 817.1,
+      "max_ms": 1729.9,
+      "p50_ms": 1154.4,
+      "success_rate_pct": 100.0,
+      "avg_tokens_output": 258.7,
+      "total_calls": 10,
+      "successes": 10,
+      "deprecated": false,
+      "sample_responses": [
+        {
+          "phrase": "¿Cuándo es mi próxima dosis de medicamento?",
+          "response": "Lo siento, no tengo acceso a tu calendario de medicación. Por favor, revisa tu receta o contacta a tu médico o enfermera."
+        },
+        {
+          "phrase": "Me duele la cabeza, ¿qué hago?",
+          "response": "Lamento que tengas dolor de cabeza. Te recomiendo que consultes a un profesional de salud para una evaluación adecuada."
+        }
+      ]
+    },
+    {
+      "model": "moonshotai/kimi-k2-instruct",
+      "avg_ms": 1585.6,
+      "min_ms": 529.0,
+      "max_ms": 4846.0,
+      "p50_ms": 1263.0,
+      "success_rate_pct": 100.0,
+      "avg_tokens_output": 53.6,
+      "total_calls": 10,
+      "successes": 10,
+      "deprecated": false,
+      "sample_responses": [
+        {
+          "phrase": "¿Cuándo es mi próxima dosis de medicamento?",
+          "response": "No tengo acceso a tu historial de medicación. Por favor, revisa tu receta médica o contacta directamente a tu farmacéutico para confirmar el horario exacto de tu próxima dosis."
+        },
+        {
+          "phrase": "Me duele la cabeza, ¿qué hago?",
+          "response": "Entiendo que te duele la cabeza. No puedo diagnosticar la causa.\n\nTe recomiendo consultar con un médico para evaluarte adecuadamente.\n\nSi tienes fiebre, confusión o dolor severo, busca atención médica inmediata."
+        }
+      ]
+    },
+    {
+      "model": "meta-llama/llama-4-maverick-17b-128e-instruct",
+      "avg_ms": 724.7,
+      "min_ms": 450.6,
+      "max_ms": 2731.7,
+      "p50_ms": 488.7,
+      "success_rate_pct": 100.0,
+      "avg_tokens_output": 34.1,
+      "total_calls": 10,
+      "successes": 10,
+      "deprecated": true,
+      "sample_responses": [
+        {
+          "phrase": "¿Cuándo es mi próxima dosis de medicamento?",
+          "response": "Necesito saber tu horario de medicación. Por favor, proporciona la información de tu última dosis y el intervalo recomendado para calcular tu próxima dosis. Consulta con tu médico si tienes dudas."
+        },
+        {
+          "phrase": "Me duele la cabeza, ¿qué hago?",
+          "response": "Tienes dolor de cabeza. Debes consultar a un médico para evaluar la causa. Mientras tanto, puedes intentar descansar y mantener un ambiente tranquilo."
+        }
+      ]
+    }
+  ],
+  "recommended_top3": [
+    "openai/gpt-oss-120b",
+    "llama-3.1-8b-instant",
+    "qwen/qwen3-32b"
+  ],
+  "recommended_config": {
+    "GROQ_MODEL": "llama-3.3-70b-versatile",
+    "GROQ_FALLBACK_MODELS": [
+      "openai/gpt-oss-120b",
+      "llama-3.1-8b-instant",
+      "qwen/qwen3-32b"
+    ]
+  }
+}
