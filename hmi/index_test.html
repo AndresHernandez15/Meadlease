@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Atlas Face — Test</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #000; overflow: hidden; width: 100vw; height: 100vh; }
+    canvas { display: block; width: 100%; height: 100%; }
+
+    /* HUD — casi invisible, aparece al hover */
+    #hud {
+      position: fixed;
+      bottom: 22px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 7px;
+      opacity: 0.08;
+      transition: opacity 0.4s;
+      pointer-events: none;
+    }
+    #hud:hover { opacity: 1; pointer-events: all; }
+
+    .btn {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.35);
+      color: rgba(255,255,255,0.65);
+      font: 11px/1 monospace;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      letter-spacing: 0.04em;
+      transition: all .15s;
+      white-space: nowrap;
+    }
+    .btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.65); color: #fff; }
+    .btn.on    { background: rgba(255,255,255,0.14); border-color: #fff; color: #fff; }
+
+    .key { opacity: 0.45; margin-left: 5px; font-size: 10px; }
+
+    #ws {
+      position: fixed;
+      top: 14px; right: 14px;
+      font: 10px monospace;
+      color: rgba(255,255,255,0.1);
+      letter-spacing: .06em;
+    }
+    #ws.ok { color: rgba(75,152,220,0.5); }
+  </style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+
+<div id="hud">
+  <button class="btn on"  data-s="IDLE"      onclick="go('IDLE')">IDLE<span class="key">1</span></button>
+  <button class="btn"     data-s="WAKE"      onclick="go('WAKE')">WAKE<span class="key">2</span></button>
+  <button class="btn"     data-s="LISTENING" onclick="go('LISTENING')">LISTENING<span class="key">3</span></button>
+  <button class="btn"     data-s="THINKING"  onclick="go('THINKING')">THINKING<span class="key">4</span></button>
+  <button class="btn"     data-s="SPEAKING"  onclick="go('SPEAKING')">SPEAKING<span class="key">5</span></button>
+  <button class="btn" id="bAudio" onclick="toggleAudio()">SIM AUDIO<span class="key">A</span></button>
+  <button class="btn" id="bDebug" onclick="toggleDebug()">DEBUG<span class="key">D</span></button>
+</div>
+
+<div id="ws">WS: standalone</div>
+
+<script src="baymax_face.js"></script>
+<script>
+  const face = new BaymaxFace(document.getElementById('c'));
+  face.start();
+
+  function go(s) {
+    face.setState(s);
+    document.querySelectorAll('.btn[data-s]').forEach(b =>
+      b.classList.toggle('on', b.dataset.s === s));
+  }
+
+  function toggleAudio() {
+    face.simAudio = !face.simAudio;
+    document.getElementById('bAudio').classList.toggle('on', face.simAudio);
+  }
+
+  function toggleDebug() {
+    face._debug = !face._debug;
+    document.getElementById('bDebug').classList.toggle('on', face._debug);
+  }
+
+  // Sincronizar HUD con teclado
+  window.addEventListener('keydown', e => {
+    const m = {'1':'IDLE','2':'WAKE','3':'LISTENING','4':'THINKING','5':'SPEAKING'};
+    if (m[e.key]) document.querySelectorAll('.btn[data-s]').forEach(b =>
+      b.classList.toggle('on', b.dataset.s === m[e.key]));
+    if (e.key==='a'||e.key==='A') document.getElementById('bAudio').classList.toggle('on');
+    if (e.key==='d'||e.key==='D') document.getElementById('bDebug').classList.toggle('on');
+  });
+
+  // WebSocket — reconecta automáticamente cuando FastAPI esté disponible
+  function connectWS() {
+    const wsEl = document.getElementById('ws');
+
+    const wsState = new WebSocket('ws://localhost:8000/ws/state');
+    wsState.onopen    = () => { wsEl.textContent = 'WS: conectado'; wsEl.classList.add('ok'); };
+    wsState.onmessage = e => {
+      try {
+        const { state, params } = JSON.parse(e.data);
+        face.setState(state, params || {});
+        document.querySelectorAll('.btn[data-s]').forEach(b =>
+          b.classList.toggle('on', b.dataset.s === state));
+      } catch(_) {}
+    };
+    wsState.onclose = () => {
+      wsEl.textContent = 'WS: standalone';
+      wsEl.classList.remove('ok');
+      setTimeout(connectWS, 3000);
+    };
+    wsState.onerror = () => wsState.close();
+
+    const wsAudio = new WebSocket('ws://localhost:8000/ws/audio');
+    wsAudio.onmessage = e => {
+      try {
+        const { level, source } = JSON.parse(e.data);
+        if (source === 'tts') face.setAudioLevel(level);
+        if (source === 'mic') face.setMicLevel(level);
+      } catch(_) {}
+    };
+    wsAudio.onclose = () => setTimeout(connectWS, 3000);
+    wsAudio.onerror = () => wsAudio.close();
+  }
+
+  connectWS();
+</script>
+</body>
+</html>
