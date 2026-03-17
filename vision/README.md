@@ -1,43 +1,38 @@
-# Visión Artificial — Meadlease
+# Módulo de Visión Artificial - Robot Asistente Médico
 
-> **Responsable:** Juan  
-> **Estado:** ❌ Pendiente — por iniciar
+Sistema de visión artificial para Meadlese.
 
-## Objetivo
+## Características
 
-- Detección de personas en el entorno del robot (silueta/skeleton con Kinect V2)
-- Reconocimiento facial para identificar usuarios registrados (mínimo 2 usuarios)
+- **Detección Humana** (`Identificacion_Corporal_Lejos.py`) - Identificador de personas usando MediaPipe
+- **Reconocimiento Facial** (`Reconocimiento.py`) - Identifica al usuario mediante algoritmo LBPH
+- **Registro de Usuario** (`captura_rostros_compatible.py`) - Captura y entrena modelo facial
 
-## Integración con ROS2
-
-Este módulo publicará en los siguientes topics:
-
-```
-/person/detected        # std_msgs/Bool
-/person/position        # geometry_msgs/Point
-/patient/identified     # std_msgs/String  (nombre del usuario)
-/patient/confidence     # std_msgs/Float32 (confianza del reconocimiento)
+## Instalación
+```bash
+pip install -r requirements.txt
 ```
 
-## Sensores disponibles
+## Uso
 
-- **Kinect V2** — detección de personas a mayor rango (skeleton tracking)
-- **Cámara portátil** — reconocimiento facial en corta distancia
-
-## Restricciones de hardware
-
-- Sin GPU dedicada (Intel i3 solamente)
-- No usar modelos que requieran CUDA
-- Optimización de CPU es crítica
-
-## Estructura sugerida
-
+### 1. Registrar nuevo usuario
+```bash
+python captura_rostros_compatible.py
 ```
-vision/
-├── README.md
-├── requirements.txt
-├── person_detector_node.py     # Nodo ROS2 — detección
-├── face_recognition_node.py    # Nodo ROS2 — identificación
-├── models/                     # Modelos (no versionados)
-└── test/
+
+### 2. Reconocimiento facial
+```bash
+python Reconocimiento.py
 ```
+
+### 3. Detección humana
+```bash
+python Identificacion_Corporal_Lejos.py
+```
+
+## Librerias
+
+- Python 3.10
+- OpenCV 4.8+
+- MediaPipe 0.10.9
+- NumPy
