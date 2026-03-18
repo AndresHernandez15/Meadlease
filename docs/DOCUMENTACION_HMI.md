@@ -2,7 +2,7 @@
 ## Robot Asistente Médico Domiciliario Meadlese
 
 > **Audiencia:** Andrés (líder software)  
-> **Estado:** Diseño completo definido · Implementación pendiente  
+> **Estado:** 🟢 **En desarrollo** (Arquitectura definida, implementación en curso)
 > **Tecnología:** FastAPI + Chromium Kiosk + HTML/CSS/JS (Canvas 2D)  
 > **Plataforma destino:** Ubuntu 22.04 + ROS2 Humble  
 > **Última actualización:** 2026-03-16
@@ -98,22 +98,32 @@ ROS2 graph ──→ FastAPI (Python, proceso separado, mismo PC)
 
 ### Estructura de Archivos (Target)
 
+La siguiente estructura de archivos es el objetivo para la implementación final. Los archivos existentes en `hmi/` (`baymax_face.js`, `index_test.html`) son prototipos iniciales que serán integrados o reemplazados dentro de esta arquitectura.
+
 ```
 hmi/                                     # Módulo HMI (Meadlease/hmi/)
-├── server.py                            # FastAPI app — entrypoint
-├── ros2_bridge.py                       # rclpy subscriber/publisher thread
-├── audio_level.py                       # Captura nivel de amplitud sounddevice → WS
-├── routers/
-│   ├── state.py                         # WebSocket /ws/state
-│   ├── audio.py                         # WebSocket /ws/audio
-│   └── dashboard.py                     # REST endpoints datos BD
-├── static/
+├── backend/                             # Lógica de servidor FastAPI
+│   ├── main.py                          # FastAPI app — entrypoint
+│   ├── ros2_bridge.py                   # rclpy subscriber/publisher thread
+│   ├── audio_level.py                   # Captura nivel de amplitud sounddevice → WS
+│   ├── routers/
+│   │   ├── state.py                     # WebSocket /ws/state
+│   │   ├── audio.py                     # WebSocket /ws/audio
+│   │   └── dashboard.py                 # REST endpoints datos BD
+│   └── requirements.txt                 # Dependencias de Python (FastAPI, uvicorn, rclpy)
+│
+├── frontend/                            # Interfaz de usuario (Chromium Kiosk)
 │   ├── index.html                       # App HTML única
-│   ├── baymax_face.js                   # Renderizado Canvas — cara Baymax
-│   ├── dashboard.js                     # Panel de datos del paciente
-│   ├── state_machine.js                 # FSM del frontend (16 estados)
-│   └── style.css                        # Variables CSS + layout kiosk
-└── templates/                           # Jinja2 si se necesita SSR
+│   ├── static/
+│   │   ├── js/
+│   │   │   ├── main.js                  # Lógica principal, FSM, WebSocket client
+│   │   │   ├── baymax_face.js           # Renderizado Canvas — cara Baymax (prototipo a integrar)
+│   │   │   └── dashboard.js             # Lógica del panel de datos del paciente
+│   │   └── css/
+│   │       └── style.css                # Variables CSS + layout kiosk
+│   └── public/                          # Assets (imágenes, fuentes, etc.)
+│
+└── README.md                            # Instrucciones de lanzamiento y descripción
 ```
 
 ### Lanzar el HMI
@@ -475,7 +485,7 @@ El HMI tiene **16 estados**, cada uno con visual específico, entradas, salidas 
 
 **Salidas:**
 - → `SEARCHING`: inicio de búsqueda inmediata (sub-estado visual, mismo REMINDER activo)
-- → `ALERT`: timeout crítico >60 min sin entregar la medicación
+- → `ALERT`: timeout crítico >60 min sin entrega de medicación
 
 **Nodos ROS2 / Sistemas:**
 - `scheduler_node` (topic `/scheduler/reminder` con payload: `patient_id`, `medication_id`, `scheduled_time`)
@@ -1321,7 +1331,7 @@ async def get_medications(patient_id: int):
 ### FSM del Frontend (`state_machine.js`)
 
 ```javascript
-// state_machine.js — espejo del state_machine_node en el frontend
+// /state_machine.js — espejo del state_machine_node en el frontend
 // Gestiona qué elementos del DOM son visibles en cada estado
 
 const STATE_CONFIG = {

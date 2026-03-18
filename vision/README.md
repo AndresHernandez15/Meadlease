@@ -36,3 +36,4 @@ python Identificacion_Corporal_Lejos.py
 - OpenCV 4.8+
 - MediaPipe 0.10.9
 - NumPy
+
