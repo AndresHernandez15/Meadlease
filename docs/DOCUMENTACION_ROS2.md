@@ -615,7 +615,7 @@ El STM32 corre como nodo ROS2 nativo vía micro-ROS (USB-CDC): se suscribe a `/c
 | **`medication_node`** | ❌ Pendiente | Espera diseño mecánico del dispensador |
 | **`person_detector_node`** | ❌ Pendiente | Port desde Windows a ROS2 |
 | **`face_recognition_node`** | ❌ Pendiente | Port desde Windows a ROS2 |
-| **`atlas_ros2_node`** | 🔄 **En progreso** | Atlas completo en Windows ✅; nodo wrapper para ROS2 creado. |
+| **`atlas_ros2_node`** | ✅ Completado | Port a ROS2 con estrategia Wrapper — validado 2026-03-17 |
 | **`state_machine_node`** | ❌ Pendiente | Diseñado; pendiente implementación |
 | **`scheduler_node`** | ❌ Pendiente | Lógica de horarios en BD ✅; nodo ROS2 pendiente |
 | **micro-ROS STM32** | ✅ Base validado | Comunicación básica OK; integración con ESP32 pendiente |
@@ -625,9 +625,8 @@ El STM32 corre como nodo ROS2 nativo vía micro-ROS (USB-CDC): se suscribe a `/c
 
 1. **Robot físicamente armado** → desbloquea Nav2, TF tree, URDF, odometría
 2. **`esp32_bridge_node`** → primer nodo de actuación real
-3. **Port `atlas_ros2_node`** → sistema conversacional en Ubuntu
-4. **Port visión artificial** → detección + reconocimiento facial en ROS2
-5. **Mapa real del apartamento** → habilita navegación autónoma
+3. **Port visión artificial** → detección + reconocimiento facial en ROS2
+4. **Mapa real del apartamento** → habilita navegación autónoma
 
 ---
 

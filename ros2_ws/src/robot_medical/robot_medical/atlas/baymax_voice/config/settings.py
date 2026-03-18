@@ -24,8 +24,14 @@ WAKE_WORD = 'atlas'
 
 # Porcupine
 PORCUPINE_ACCESS_KEY = os.getenv('PORCUPINE_ACCESS_KEY', '')
-PORCUPINE_KEYWORD_PATH = os.path.join(PROJECT_ROOT, 'baymax_voice', 'data', 'models', 'Atlas_es_windows_v4_0_0.ppn')
-PORCUPINE_MODEL_PATH = os.path.join(PROJECT_ROOT, 'baymax_voice', 'data', 'models', 'porcupine_params_es.pv')
+PORCUPINE_KEYWORD_PATH = os.getenv(
+    'PORCUPINE_KEYWORD_PATH',
+    os.path.join(PROJECT_ROOT, 'baymax_voice', 'data', 'models', 'Atlas_es_windows_v4_0_0.ppn')
+)
+PORCUPINE_MODEL_PATH = os.getenv(
+    'PORCUPINE_MODEL_PATH',
+    os.path.join(PROJECT_ROOT, 'baymax_voice', 'data', 'models', 'porcupine_params_es.pv')
+)
 PORCUPINE_SENSITIVITY = 0.5
 
 # Vosk

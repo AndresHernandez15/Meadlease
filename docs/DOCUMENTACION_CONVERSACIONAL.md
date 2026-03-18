@@ -419,9 +419,11 @@ Regenerar con: `python scripts/generate_confirmation_audio.py`
 - **Bridge de eventos:** El nodo se suscribe a eventos de Atlas y los publica como topics ROS2.
 - **Validación de dependencias en Ubuntu:** Pendiente de verificar `Porcupine` y `sounddevice`.
 
-### Pendientes — post Windows (ROS2) ❌
+### Pendientes — post Windows (ROS2) ⏳
 
-- Topics ROS2 para integración completa con navegación y hardware.
+- ✅ Port a Ubuntu 22.04 y validación de dependencias — completado 2026-03-17
+- ✅ Convertir `main.py` en nodo ROS2 (`AtlasNode`) — completado 2026-03-17, estrategia Wrapper
+- ✅ Topics ROS2 para integración con navegación y hardware — completado 2026-03-17
 - HMI dashboard para visualización de datos del paciente.
 - Reconocimiento facial para `patient_id` automático.
 
@@ -453,6 +455,15 @@ El nodo `atlas_ros2_node.py` ya ha sido creado y actúa como un wrapper. Lanza e
 5.  Conectar `medical_db` con datos reales de sensores (vía topics `/health/*`) — **PENDIENTE**
 6.  Agregar al launch file del robot — **PENDIENTE**
 7.  Pruebas de integración con hardware real — **PENDIENTE**
+
+### Estado de la migración — 2026-03-17
+✅ Migración completada con estrategia Wrapper (Opción A):
+- Atlas corre en thread daemon dentro del proceso ROS2
+- Event bus interno conectado al nodo vía register_callback()
+- sys.path ajustado para preservar imports internos sin modificación
+- Validado en Ubuntu 22.04 con conversación real (STT + LLM + TTS)
+- Latencia en red WiFi: ~2.6–3.0s (consistente con métricas Windows)
+- Archivo: ros2_ws/src/robot_medical/robot_medical/atlas_ros2_node.py
 
 ---
 

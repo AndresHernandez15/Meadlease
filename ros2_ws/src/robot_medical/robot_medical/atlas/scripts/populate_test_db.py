@@ -3,14 +3,81 @@ Script para poblar la base de datos con datos de prueba realistas.
 Ejecutar: python scripts/populate_test_db.py
 """
 import sys
+import sqlite3
 from pathlib import Path
-from datetime import datetime, timedelta
 
 # Agregar root del proyecto al path
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from baymax_voice.logic import medical_db
+
+TABLES_DELETE_ORDER = [
+    'registros_dispensacion',
+    'signos_vitales',
+    'horarios_medicacion',
+    'medicamentos',
+    'pacientes',
+]
+
+EXPECTED_COUNTS = {
+    'pacientes': 2,
+    'medicamentos': 3,
+    'horarios_medicacion': 4,
+    'signos_vitales': 5,
+    'registros_dispensacion': 2,
+}
+
+
+def reset_database() -> None:
+    """Limpia tablas y reinicia autoincrement para una carga idempotente."""
+    with sqlite3.connect(medical_db.DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute('PRAGMA foreign_keys = ON')
+
+        for table in TABLES_DELETE_ORDER:
+            cursor.execute(f'DELETE FROM {table}')
+
+        placeholders = ', '.join('?' for _ in TABLES_DELETE_ORDER)
+        cursor.execute(
+            f'DELETE FROM sqlite_sequence WHERE name IN ({placeholders})',
+            TABLES_DELETE_ORDER,
+        )
+
+        conn.commit()
+
+
+def validate_counts() -> None:
+    """Verifica conteos esperados y aborta si hay inconsistencias."""
+    print('\n' + '═' * 70)
+    print('VALIDACIÓN FINAL DE TABLAS')
+    print('═' * 70)
+
+    errors = []
+
+    with sqlite3.connect(medical_db.DB_PATH) as conn:
+        cursor = conn.cursor()
+
+        for table_name, expected in EXPECTED_COUNTS.items():
+            cursor.execute(f'SELECT COUNT(*) FROM {table_name}')
+            count = cursor.fetchone()[0]
+
+            if count == 0:
+                errors.append(f'{table_name}: 0 filas (esperado {expected})')
+                print(f'❌ ERROR {table_name}: 0 filas (esperado {expected})')
+            elif count != expected:
+                errors.append(f'{table_name}: {count} filas (esperado {expected})')
+                print(f'⚠️  ERROR {table_name}: {count} filas (esperado {expected})')
+            else:
+                print(f'✅ {table_name}: {count} filas')
+
+    if errors:
+        print('\n❌ VALIDACIÓN FALLIDA. Revisar inconsistencias:')
+        for err in errors:
+            print(f'   - {err}')
+        sys.exit(1)
+
+    print('\n✅ BD poblada correctamente.')
 
 print('═' * 70)
 print('POBLANDO BASE DE DATOS CON DATOS DE PRUEBA')
@@ -21,16 +88,27 @@ print('\n1. Inicializando base de datos...')
 medical_db.init_db()
 print('   ✓ Base de datos inicializada')
 
-# Crear paciente
-print('\n2. Creando paciente...')
+# Limpiar DB para asegurar idempotencia
+print('\n2. Limpiando datos existentes (modo idempotente)...')
+reset_database()
+print('   ✓ Tablas limpiadas y autoincrement reiniciado')
+
+# Crear pacientes
+print('\n3. Creando pacientes...')
 paciente_id = medical_db.crear_paciente(
     nombre='Juan Pérez',
     notas='Paciente con hipertensión controlada y diabetes tipo 2'
 )
 print(f'   ✓ Paciente creado: Juan Pérez (ID: {paciente_id})')
 
+paciente_id_2 = medical_db.crear_paciente(
+    nombre='María Gómez',
+    notas='Paciente de prueba secundaria para validar multiusuario'
+)
+print(f'   ✓ Paciente creado: María Gómez (ID: {paciente_id_2})')
+
 # Crear medicamentos
-print('\n3. Creando medicamentos...')
+print('\n4. Creando medicamentos...')
 losartan_id = medical_db.crear_medicamento(
     nombre='Losartán',
     unidad='tabletas',
@@ -59,7 +137,7 @@ aspirina_id = medical_db.crear_medicamento(
 print(f'   ✓ Aspirina (ID: {aspirina_id}, Compartimento: 3, Stock: 50)')
 
 # Crear horarios de medicación
-print('\n4. Creando horarios de medicación...')
+print('\n5. Creando horarios de medicación...')
 h1 = medical_db.crear_horario_medicacion(
     id_paciente=paciente_id,
     id_medicamento=losartan_id,
@@ -97,17 +175,16 @@ h4 = medical_db.crear_horario_medicacion(
 print(f'   ✓ Aspirina: 08:30 diario, 1 tableta (ID: {h4})')
 
 # Registrar mediciones de signos vitales (últimos 5 días)
-print('\n5. Registrando mediciones de signos vitales...')
+print('\n6. Registrando mediciones de signos vitales...')
 mediciones_data = [
     (70, 97, 36.3, 'Medición hace 4 días'),
     (72, 98, 36.4, 'Medición hace 3 días'),
     (74, 99, 36.5, 'Medición hace 2 días'),
     (76, 100, 36.6, 'Medición hace 1 día'),
-    (78, 101, 36.7, 'Medición de hoy (mañana)')
+    (78, 98, 36.7, 'Medición de hoy (mañana)')
 ]
 
 for i, (bpm, spo2, temp, nota) in enumerate(mediciones_data):
-    dias_atras = 4 - i
     medical_db.registrar_signos_vitales(
         id_paciente=paciente_id,
         bpm=bpm,
@@ -117,8 +194,8 @@ for i, (bpm, spo2, temp, nota) in enumerate(mediciones_data):
     )
     print(f'   ✓ Día {i+1}: BPM={bpm}, SpO2={spo2}%, T={temp}°C')
 
-# Registrar algunas dispensaciones (ejemplo: medicamentos de ayer)
-print('\n6. Registrando dispensaciones de ejemplo...')
+# Registrar algunas dispensaciones de ejemplo
+print('\n7. Registrando dispensaciones de ejemplo...')
 d1 = medical_db.crear_registro_dispensacion(
     id_paciente=paciente_id,
     id_medicamento=losartan_id,
@@ -127,6 +204,15 @@ d1 = medical_db.crear_registro_dispensacion(
     notas='Dispensación automática matutina'
 )
 print(f'   ✓ Dispensación exitosa: Losartán 08:00 (ID: {d1})')
+
+d2 = medical_db.crear_registro_dispensacion(
+    id_paciente=paciente_id,
+    id_medicamento=metformina_id,
+    id_horario=h2,
+    estado='exitoso',
+    notas='Dispensación automática mediodía'
+)
+print(f'   ✓ Dispensación exitosa: Metformina 12:00 (ID: {d2})')
 
 # Mostrar resumen final
 print('\n' + '═' * 70)
@@ -163,4 +249,6 @@ print('✓ BASE DE DATOS POBLADA EXITOSAMENTE')
 print('═' * 70)
 print(f'\nUbicación: {medical_db.DB_PATH}')
 print('Ahora puedes ejecutar main.py y probar el sistema completo.')
+
+validate_counts()
 

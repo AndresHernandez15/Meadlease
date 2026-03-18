@@ -15,17 +15,27 @@ from dotenv import load_dotenv
 # ── Paths ────────────────────────────────────────────────────────────────────
 _THIS_DIR   = os.path.dirname(os.path.abspath(__file__))
 _ATLAS_DIR  = os.path.join(_THIS_DIR, 'atlas')
-_DOTENV     = os.path.join(_ATLAS_DIR, '.env')
+_LEGACY_ATLAS_DIR = os.path.abspath(
+    os.path.join(_THIS_DIR, '..', '..', '..', '..', 'atlas')
+)
+_DOTENV_CANDIDATES = [
+    os.path.join(_ATLAS_DIR, '.env'),
+    os.path.join(_LEGACY_ATLAS_DIR, '.env'),
+]
 
 # Añadir atlas/ al path ANTES de importar cualquier módulo de baymax_voice
 sys.path.insert(0, _ATLAS_DIR)
 
-# Cargar API keys
-load_dotenv(_DOTENV)
+# Cargar API keys (.env) desde ubicación integrada o legacy
+_LOADED_DOTENV = None
+for _dotenv_path in _DOTENV_CANDIDATES:
+    if os.path.isfile(_dotenv_path):
+        load_dotenv(_dotenv_path)
+        _LOADED_DOTENV = _dotenv_path
+        break
 
 # ── Imports de Atlas (después de ajustar sys.path) ───────────────────────────
 from baymax_voice.utils.events import put_event, register_callback  # noqa: E402
-from baymax_voice.config.settings import Settings                   # noqa: E402
 
 
 class AtlasNode(Node):
@@ -40,6 +50,13 @@ class AtlasNode(Node):
     def __init__(self):
         super().__init__('atlas_ros2_node')
         self.get_logger().info('Iniciando AtlasNode...')
+        if _LOADED_DOTENV:
+            self.get_logger().info(f'Archivo .env cargado: {_LOADED_DOTENV}')
+        else:
+            self.get_logger().warning(
+                'No se encontró .env en atlas integrado ni en atlas legacy; '
+                'se usarán solo variables ya exportadas en el entorno.'
+            )
 
         # Estado compartido — actualizado por subscribers ROS2, leído por Atlas
         self._shared_state = {
@@ -124,10 +141,20 @@ class AtlasNode(Node):
     # ── Thread Atlas ──────────────────────────────────────────────────────────
 
     def _run_atlas(self) -> None:
-        """Lanza el sistema Atlas — equivalente a correr main.py directamente."""
+        """Lanza Atlas directamente sin registrar signal handlers — rclpy los maneja."""
         try:
-            from baymax_voice.main import main as atlas_main
-            atlas_main()
+            from baymax_voice.main import initialize_all, start, shutdown, _shutdown_event
+
+            if not initialize_all():
+                self.get_logger().error('Atlas: inicialización falló — módulo crítico no disponible')
+                return
+
+            start()
+            self.get_logger().info('Atlas: sistema conversacional activo 🎙️')
+
+            while not _shutdown_event.is_set():
+                _shutdown_event.wait(timeout=1.0)
+
         except Exception as e:
             self.get_logger().error(f'Atlas thread terminó con error: {e}')
 
@@ -148,7 +175,8 @@ def main(args=None):
         pass
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == '__main__':
