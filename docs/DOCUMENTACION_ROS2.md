@@ -2,10 +2,10 @@
 ## Robot Asistente Médico Domiciliario Meadlese
 
 > **Audiencia:** Andrés (líder software), Juan (apoyo visión)
-> **Estado:** Kinect ✅ · SLAM ⏳ · Nav2 ❌ · Nodos médicos ❌ · Atlas-ROS2 🔄
+> **Estado:** Kinect ✅ · SLAM ⏳ · Nav2 ❌ · Nodos médicos ❌ · Atlas-ROS2 ✅
 > **Plataforma:** Ubuntu 22.04.5 LTS · ROS2 Humble Hawksbill · Python 3.10
 > **Hardware:** Dell Inspiron 3421 · i3-3227U · 12 GB RAM
-> **Última actualización:** 2026-03-16
+> **Última actualización:** 2026-03-17
 
 ---
 
@@ -109,37 +109,46 @@ Kinect Serials:  204763633847 · 299150235147
 └── log/                             # Logs ROS2 — ignorar en git
 ```
 
-### Estructura Target del Paquete `robot_medical`
+### Estructura Real del Paquete `robot_medical` (2026-03-17)
 
 ```
 robot_medical/
 ├── launch/
-│   ├── bringup.launch.py              # Launch completo del robot
-│   ├── slam.launch.py                 # Solo SLAM
-│   ├── navigation.launch.py           # Nav2 con mapa existente
-│   ├── perception.launch.py           # Visión artificial
-│   └── medical.launch.py             # Signos vitales + dispensador
-├── config/
-│   ├── rtabmap_params.yaml            # Parámetros RTAB-Map optimizados
-│   ├── nav2_params.yaml               # Parámetros Nav2
-│   ├── robot_description.urdf         # Descripción URDF del robot
-│   └── sensors.yaml                   # Configuración sensores
+│   ├── navigation_simulation.launch.py
+│   ├── slam_real_kinect.launch.py
+│   └── slam_simulation.launch.py
 ├── maps/
-│   └── [mapa real del apartamento]
-└── robot_medical/                     # Módulos Python
-    ├── __init__.py
-    ├── atlas/                         # Módulo conversacional Atlas
-    │   ├── baymax_voice/
-    │   └── ...
-    ├── atlas_ros2_node.py             # Bridge Atlas conversacional → ROS2
-    ├── stm32_bridge_node.py           # /cmd_vel → Serial → STM32 → Motores
-    ├── ultrasonic_node.py             # Lectura sensores obstáculos
-    ├── vital_signs_node.py            # Signos vitales desde ESP32
-    ├── medication_node.py             # Control dispensador
-    ├── person_detector_node.py        # Detección de personas (Kinect)
-    ├── face_recognition_node.py       # Reconocimiento facial
-    ├── state_machine_node.py          # Coordinador central
-    └── scheduler_node.py              # Horarios medicamentos
+│   ├── mi_primer_mapa.pgm
+│   └── mi_primer_mapa.yaml
+├── package.xml
+├── resource/
+│   └── robot_medical
+├── robot_medical/
+│   ├── __init__.py
+│   ├── atlas_ros2_node.py          ← Bridge Atlas ↔ ROS2 (Wrapper approach)
+│   ├── atlas/                      ← Sistema conversacional Atlas
+│   │   ├── __init__.py
+│   │   ├── baymax_voice/           ← Módulos Atlas (intactos, sin modificar)
+│   │   │   ├── main.py
+│   │   │   ├── audio/
+│   │   │   ├── cloud/
+│   │   │   ├── config/
+│   │   │   ├── local/
+│   │   │   ├── logic/
+│   │   │   ├── utils/
+│   │   │   └── test/
+│   │   ├── data/
+│   │   │   ├── audio/
+│   │   │   │   └── confirmation.wav
+│   │   │   └── patient.db
+│   │   └── scripts/
+│   │       ├── populate_test_db.py
+│   │       └── generate_confirmation_audio.py
+│   ├── kinect_mic_test.py
+│   └── kinect_node.py
+├── setup.cfg
+├── setup.py
+└── test/
 ```
 
 ### Comandos de Build
@@ -427,7 +436,7 @@ ERROR        → Error, requiere intervención
 
 #### `atlas_ros2_node.py` — Bridge conversacional
 
-**Estado:** 🔄 En progreso
+**Estado:** ✅ Completado
 
 Encapsula el sistema Atlas existente como nodo ROS2. Se ha creado el nodo `atlas_ros2_node.py` que lanza el `main.py` de Atlas en un thread interno. Se comunica con el resto del sistema ROS2 publicando y suscribiéndose a topics. Ver sección 11 de `DOCUMENTACION_CONVERSACIONAL.md` para la interfaz completa.
 
@@ -599,7 +608,7 @@ El STM32 corre como nodo ROS2 nativo vía micro-ROS (USB-CDC): se suscribe a `/c
 
 ## 10. ESTADO ACTUAL Y PENDIENTES
 
-> **Última actualización:** 2026-03-16
+> **Última actualización:** 2026-03-17
 
 ### Resumen por Componente
 
@@ -680,6 +689,21 @@ sleep 2
 ```bash
 ros2 run tf2_ros static_transform_publisher 0 0 0.88 0 0 0 base_link kinect_link
 ```
+
+### 6. Porcupine falla en Linux con archivo .ppn compilado para Windows
+
+**Causa:** Los archivos `.ppn` (keyword models) de Porcupine son platform-specific. 
+El archivo `Atlas_es_windows_v4_0_0.ppn` no funciona en Linux.
+
+**Solución:**
+1. Descargar `Atlas_es_linux_v4_0_0.ppn` desde la consola de Picovoice 
+   (console.picovoice.ai) seleccionando plataforma Linux x86_64
+2. Colocar en `robot_medical/atlas/baymax_voice/data/models/`
+3. Actualizar `PORCUPINE_KEYWORD_PATH` en el `.env` con el path al archivo Linux
+
+**Nota importante:** El tier gratuito de Picovoice solo permite 1 device activa 
+simultáneamente. Usar access keys separadas para el entorno Windows (desarrollo) 
+y Ubuntu (producción).
 
 ---
 

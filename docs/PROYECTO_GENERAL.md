@@ -244,7 +244,11 @@ Desarrollar un robot asistente médico inteligente para monitoreo de signos vita
 - **BD local:** SQLite — historial de salud, horarios de medicación, usuarios registrados
 - **Principio ético:** Nunca diagnostica ni prescribe; siempre deriva al médico
 
-**Estado:** Pipeline completo en Windows ✅ | Port a ROS2 🔄 (en progreso)
+**Estado:** Pipeline completo en Windows ✅ | Port a ROS2 ✅ — validado en Ubuntu 22.04 el 2026-03-17
+> **Nota de implementación:** La migración usó estrategia Wrapper — Atlas corre 
+> en thread daemon dentro del proceso ROS2, con `atlas_ros2_node.py` como bridge 
+> externo. El código de `baymax_voice/` no fue modificado. Ver 
+> `DOCUMENTACION_CONVERSACIONAL.md` sección 11 para detalles.
 
 ---
 
@@ -377,7 +381,7 @@ El STM32 corre como nodo ROS2 nativo vía **micro-ROS**: se suscribe a `/cmd_vel
 
 ### Fase 2 — Navegación, Percepción y Conversacional (Abril — 1ª mitad)
 - [ ] Nav2 funcionando en robot físico
-- [ ] Port del sistema conversacional Atlas a ROS2
+- [x] Port del sistema conversacional Atlas a ROS2
 - [ ] Port del módulo de visión artificial a ROS2
 - [ ] Reconocimiento facial de 2 usuarios en robot físico
 

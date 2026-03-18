@@ -2,10 +2,10 @@
 ## Robot Asistente Médico Domiciliario Meadlese
 
 > **Audiencia:** Andrés (líder software)  
-> **Estado:** Módulo completo y validado en Windows · Port a ROS2 en progreso  
+> **Estado:** Módulo completo y validado en Windows · Port a ROS2 ✅
 > **Plataforma actual:** Windows 11 + Python 3.10  
 > **Plataforma destino:** Ubuntu 22.04 + ROS2 Humble  
-> **Última actualización:** 2026-03-16
+> **Última actualización:** 2026-03-17
 
 ---
 
@@ -136,37 +136,34 @@ PORCUPINE_ACCESS_KEY=...
 
 ## 4. ESTRUCTURA DEL PROYECTO
 
-El módulo `atlas` ha sido integrado dentro del paquete ROS2 `robot_medical`.
+> **Nota de migración (2026-03-17):** El módulo Atlas fue migrado desde `atlas/` 
+> en la raíz del repo a `ros2_ws/src/robot_medical/robot_medical/atlas/` para 
+> integrarse correctamente con el sistema de paquetes de ROS2. El código interno 
+> de `baymax_voice/` no fue modificado — solo cambió su ubicación.
 
-```
-ros2_ws/src/robot_medical/
-└── robot_medical/
-    ├── atlas/                          # MÓDULO CONVERSACIONAL INTEGRADO
-    │   ├── __init__.py
-    │   ├── baymax_voice/
-    │   │   ├── __init__.py
-    │   │   ├── main.py                 # Orquestador original (ahora usado por el nodo)
-    │   │   ├── audio/
-    │   │   ├── cloud/
-    │   │   ├── config/
-    │   │   ├── local/
-    │   │   ├── logic/
-    │   │   └── utils/
-    │   ├── data/
-    │   │   ├── patient.db
-    │   │   └── audio/
-    │   └── scripts/
-    │       ├── populate_test_db.py
-    │       └── generate_confirmation_audio.py
-    │
-    └── atlas_ros2_node.py              # NUEVO NODO WRAPPER ROS2
+# Ubicación en el proyecto (dentro del workspace ROS2)
+ros2_ws/src/robot_medical/robot_medical/
+├── atlas_ros2_node.py               ← Nodo ROS2 wrapper (nuevo)
+└── atlas/                           ← Sistema conversacional
+    ├── baymax_voice/
+    │   ├── main.py                  ← Orquestador (sin modificar)
+    │   ├── audio/
+    │   ├── cloud/
+    │   ├── config/settings.py
+    │   ├── local/
+    │   ├── logic/
+    │   ├── utils/
+    │   │   └── events.py            ← Modificado: register_callback() agregado
+    │   └── test/
+    ├── data/
+    │   ├── audio/confirmation.wav
+    │   └── patient.db
+    └── scripts/
+        ├── populate_test_db.py      ← Idempotente desde 2026-03-17
+        └── generate_confirmation_audio.py
 
-# Archivos de configuración y dependencias que permanecen fuera del workspace de ROS2
-# por ahora, para referencia.
-atlas/
-├── requirements.txt
-└── .env
-```
+# Referencia de raíz del repo (fuera de ros2_ws)
+docs/                                ← Documentación general
 
 ---
 
@@ -317,6 +314,10 @@ El contexto dinámico se calcula en cada petición vía `_calcular_tiempo_relati
 
 ### Poblar datos de prueba
 
+> **populate_test_db.py es idempotente desde 2026-03-17:** El script hace reset 
+> limpio de todas las tablas antes de insertar, garantizando consistencia al 100% 
+> en cada ejecución. Incluye validación final con conteo de filas por tabla.
+
 ```bash
 python scripts/populate_test_db.py
 ```
@@ -410,10 +411,10 @@ Regenerar con: `python scripts/generate_confirmation_audio.py`
 - Driver de comunicación con microcontrolador para recibir mediciones reales de signos vitales (cuando Vosk detecte el comando: enviar al micro → recibir datos → guardar en BD → reportar)
 - Scheduler de recordatorios automáticos de medicación
 - Rate limiter para protección del tier gratuito de Groq
-- `intent_classifier.py` para mejorar enrutamiento local/cloud
-
-### En Progreso — Port a ROS2 🔄
-
+- ✅ **`atlas_ros2_node.py` creado:** Nodo wrapper que lanza Atlas en un thread interno y actúa como bridge.
+- ✅ **Integración con `setup.py`:** El nodo ya es un ejecutable de ROS2.
+- ✅ **Bridge de eventos:** El nodo se suscribe a eventos de Atlas y los publica como topics ROS2.
+- ✅ **Validación de dependencias en Ubuntu:** Validado, `Porcupine` requiere archivo `.ppn` para Linux
 - **`atlas_ros2_node.py` creado:** Nodo wrapper que lanza Atlas en un thread interno y actúa como bridge.
 - **Integración con `setup.py`:** El nodo ya es un ejecutable de ROS2.
 - **Bridge de eventos:** El nodo se suscribe a eventos de Atlas y los publica como topics ROS2.
@@ -448,13 +449,13 @@ El nodo `atlas_ros2_node.py` ya ha sido creado y actúa como un wrapper. Lanza e
 
 ### Pasos de migración
 
-1.  Instalar Ubuntu 22.04 + ROS2 Humble + virtualenv Python 3.10
-2.  Verificar compatibilidad de cada dependencia Python en Ubuntu (especialmente Porcupine y PyAudio) — **PENDIENTE**
-3.  Convertir `main.py` en clase `AtlasNode(Node)` de ROS2 — **EN PROGRESO** (se optó por un wrapper para minimizar cambios en el código original validado).
-4.  Reemplazar bus de eventos interno por topics ROS2 — **EN PROGRESO** (se usa un bridge de callbacks).
-5.  Conectar `medical_db` con datos reales de sensores (vía topics `/health/*`) — **PENDIENTE**
-6.  Agregar al launch file del robot — **PENDIENTE**
-7.  Pruebas de integración con hardware real — **PENDIENTE**
+1.  ✅ Instalar Ubuntu 22.04 + ROS2 Humble + virtualenv Python 3.10
+2.  ✅ Verificar compatibilidad de cada dependencia Python en Ubuntu (especialmente Porcupine y PyAudio) — **COMPLETADO**
+3.  ✅ Convertir `main.py` en clase `AtlasNode(Node)` de ROS2 — **COMPLETADO** (se optó por un wrapper para minimizar cambios en el código original validado).
+4.  ✅ Reemplazar bus de eventos interno por topics ROS2 — **COMPLETADO** (se usa un bridge de callbacks).
+5.  **PENDIENTE** Conectar `medical_db` con datos reales de sensores (vía topics `/health/*`)
+6.  **PENDIENTE** Agregar al launch file del robot
+7.  **PENDIENTE** Pruebas de integración con hardware real
 
 ### Estado de la migración — 2026-03-17
 ✅ Migración completada con estrategia Wrapper (Opción A):
