@@ -141,60 +141,65 @@ Desarrollar un robot asistente médico inteligente para monitoreo de signos vita
 
 ## 6. HARDWARE DEL SISTEMA
 
+> **Documentación completa de hardware:** `DOCUMENTACION_HARDWARE.md`  
+> Esta sección contiene solo el resumen ejecutivo. Para inventario completo, conexiones, cálculos de energía y checklist de fabricación, ver el documento dedicado.
+
 ### Computador Principal
 
 | Componente | Especificación |
 |------------|----------------|
-| Modelo | Dell Inspiron 3421 |
+| Modelo | Dell Inspiron 3421 (placa madre sin carcasa) |
 | CPU | Intel Core i3-3227U |
 | RAM | 12 GB |
 | SO | Ubuntu 22.04.5 LTS |
-| Alimentación | 19.5V via step-down desde batería |
+| Periféricos internos | Pantalla Samsung (LVDS/eDP) · Trackpad Samsung (ZIF compatible) · Cámara integrada |
 
 ### Sensores y Percepción
 
 | Componente | Función | Estado |
-|----------|---------|--------|
-| Kinect V2 (USB 3.0, 12V) | Mapeo SLAM 3D + detección de personas | ✅ Probado |
-| Cámara portátil | Reconocimiento facial | ✅ Probado |
-| JSN-SR04T × 2 (frontal/trasero) | Detección principal de obstáculos | ✅ Conseguidos |
-| HC-SR04 × 2-4 (esquinas) | Cobertura lateral de obstáculos | ✅ Conseguidos |
-| IR anticaída (posición TBD) | Detección de escalones/desniveles | ⏳ Pendiente selección |
-| MAX30102 | BPM + SpO₂ | ⏳ Pendiente calibración |
-| Sensor temperatura corporal | Temperatura corporal por contacto | ⏳ Pendiente calibración |
+|------------|---------|--------|
+| Kinect V2 | SLAM RGB-D + detección personas + micrófono array 4 canales | ✅ Probado |
+| Cámara Dell (integrada) | Reconocimiento facial | ✅ Funcional |
+| JSN-SR04T × 5 | Detección de obstáculos (frontal × 2, lateral × 2, trasero × 1) | ✅ Disponibles |
+| MAX30102 | BPM + SpO₂ | ✅ Disponible |
+| MLX90614 o MAX30205 | Temperatura corporal | ⏳ Decisión pendiente |
+| FC-51 | Detección pastilla en canal de caída (dispensador) | ✅ Disponible |
+| MPS20N0040D | Presión manguera bomba vacío (confirma succión) | ✅ Disponible |
+
+> **E18-D80NK (sensores anticaída IR) — eliminados del proyecto.** Evaluados y descartados por limitaciones en superficies oscuras y restricciones de integración mecánica. Nav2 cubre esta función en entorno mapeado. Documentado como mejora futura en `DOCUMENTACION_HARDWARE.md` sección 10.4.
 
 ### Actuadores y Movilidad
 
 | Componente | Especificación | Estado |
 |------------|----------------|--------|
-| Motores BLDC × 2 | 24V, hoverboard, con sensores Hall | ✅ Probados |
+| Motores BLDC × 2 | Hoverboard 6.5" · 24V · encoders Hall | ✅ Probados |
 | Drivers ZS-X11H × 2 | Control PWM | ✅ Probados |
-| Rueda frontal | Equilibrio (no motrices) | ✅ |
-| Brazo robótico 2DOF | Dispensación de medicamentos | ⏳ En diseño |
-| Bomba de vacío + manguera | Manipulación de pastillas sin daño | ⏳ En diseño |
-| Sensor de presión | Confirma captura de pastilla | ⏳ En diseño |
+| Steppers 28BYJ-48 × 3 | Carrusel (×1) + brazo 2DOF (×2) | ✅ Disponibles |
+| Drivers ULN2003 × 3 | Control steppers | ✅ Disponibles |
+| Bomba vacío ZT370 | Manipulación pastillas | ✅ Disponible |
+| Módulo relé 5V 1 canal | Control bomba vacío (5V completos a la carga) | ✅ Especificado |
 
 ### Microcontroladores
 
 | MCU | Función | Estado |
 |-----|---------|--------|
-| **STM32F411 Blackpill** | Columna vertebral: micro-ROS (USB-CDC ↔ PC), UART1 ↔ ESP32 Movilidad, UART2 ↔ ESP32 Médica, GPIO botones HMI | ✅ micro-ROS validado |
-| **ESP32 S3 — Movilidad** | PWM motores, encoders Hall, sensores obstáculos | ✅ Conectado y probado |
-| **ESP32 S3 — Médica** | Control dispensador + sensores signos vitales | ⏳ Pendiente integración |
-
-> STM32F411 elegido sobre ESP32 para MCU auxiliar por: 6 UARTs hardware, DMA por canal, latencia determinista en `/cmd_vel` (decisión tomada 2026-03-04).
+| STM32F411 Blackpill | Columna vertebral: micro-ROS ↔ PC · UART → ESP32s · GPIO botones emergencia | ✅ micro-ROS validado |
+| ESP32 S3 — Movilidad | PWM motores · encoders Hall · ultrasonidos × 5 | ✅ Conectado y probado |
+| ESP32 S3 — Médica | Dispensador · signos vitales · sensores médicos | ⏳ Firmware pendiente |
+| ESP32-CAM | Verificación visual pastilla (booleano UART → ESP32 Médica) | ⏳ Pendiente integración |
 
 ### Sistema de Energía
 
 | Componente | Detalle | Estado |
 |------------|---------|--------|
-| Pack baterías | 7S 4P litio, ~29.4V, ~6000mAh | ✅ Armado |
-| Step-down 19.5V | Portátil | ✅ Probado |
-| Step-down 12V | Kinect V2 | ✅ |
-| Step-down 5V | MCUs y sensores | ✅ |
-| Voltaje directo ~24-29V | Motores BLDC vía drivers | ✅ |
+| Pack 7S4P | 25.9V nominal · ~6Ah · ~155 Wh · celdas 18650 validadas | ✅ Disponible |
+| BMS HXYP-C47-MA18 | 7S · 10A continuo · 15A pico | ✅ Disponible |
+| XL4016 #1 | 29V → 19.7V (compensado) → Dell | ✅ Disponible |
+| XL4016 #2 | 29V → 12V → Kinect | ✅ Disponible |
+| XL4015 | 29V → 5V → lógica general | ✅ Disponible |
+| Fusible principal | **15A slow-blow** (pico arranque motores 7.8A) | ✅ Especificado |
 
----
+**Autonomía estimada:** ~1h 37min en demo típica mixta (80% DoD).
 
 ## 7. MÓDULOS DE SOFTWARE
 
