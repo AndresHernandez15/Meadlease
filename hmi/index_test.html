@@ -5,18 +5,19 @@
   <title>Atlas Face — Test</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #000; overflow: hidden; width: 100vw; height: 100vh; }
+    body { background: #fff; overflow: hidden; width: 100vw; height: 100vh; }
     canvas { display: block; width: 100%; height: 100%; }
 
-    /* HUD — casi invisible, aparece al hover */
     #hud {
       position: fixed;
       bottom: 22px;
       left: 50%;
       transform: translateX(-50%);
       display: flex;
-      gap: 7px;
-      opacity: 0.58;
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: center;
+      opacity: 0.88;
       transition: opacity 0.4s;
       pointer-events: none;
     }
@@ -24,8 +25,8 @@
 
     .btn {
       background: transparent;
-      border: 1px solid rgba(255,255,255,0.35);
-      color: rgba(255,255,255,0.65);
+      border: 1px solid rgba(0,0,0,0.25);
+      color: rgba(0,0,0,0.5);
       font: 11px/1 monospace;
       padding: 6px 12px;
       border-radius: 4px;
@@ -34,19 +35,19 @@
       transition: all .15s;
       white-space: nowrap;
     }
-    .btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.65); color: #fff; }
-    .btn.on    { background: rgba(255,255,255,0.14); border-color: #fff; color: #fff; }
+    .btn:hover { background: rgba(0,0,0,0.05); border-color: rgba(0,0,0,0.5); color: #000; }
+    .btn.on    { background: rgba(0,0,0,0.08); border-color: #000; color: #000; }
 
-    .key { opacity: 0.45; margin-left: 5px; font-size: 10px; }
+    .key { opacity: 0.4; margin-left: 5px; font-size: 10px; }
 
     #ws {
       position: fixed;
       top: 14px; right: 14px;
       font: 10px monospace;
-      color: rgba(255,255,255,0.1);
+      color: rgba(0,0,0,0.15);
       letter-spacing: .06em;
     }
-    #ws.ok { color: rgba(75,152,220,0.5); }
+    #ws.ok { color: rgba(21,101,192,0.5); }
   </style>
 </head>
 <body>
@@ -54,13 +55,18 @@
 <canvas id="c"></canvas>
 
 <div id="hud">
-  <button class="btn on"  data-s="IDLE"      onclick="go('IDLE')">IDLE<span class="key">1</span></button>
-  <button class="btn"     data-s="WAKE"      onclick="go('WAKE')">WAKE<span class="key">2</span></button>
-  <button class="btn"     data-s="LISTENING" onclick="go('LISTENING')">LISTENING<span class="key">3</span></button>
-  <button class="btn"     data-s="THINKING"  onclick="go('THINKING')">THINKING<span class="key">4</span></button>
-  <button class="btn"     data-s="SPEAKING"  onclick="go('SPEAKING')">SPEAKING<span class="key">5</span></button>
-  <button class="btn" id="bAudio" onclick="toggleAudio()">SIM AUDIO<span class="key">A</span></button>
-  <button class="btn" id="bDebug" onclick="toggleDebug()">DEBUG<span class="key">D</span></button>
+  <button class="btn on"  data-s="IDLE"       onclick="go('IDLE')">IDLE<span class="key">1</span></button>
+  <button class="btn"     data-s="WAKE"       onclick="go('WAKE')">WAKE<span class="key">2</span></button>
+  <button class="btn"     data-s="LISTENING"  onclick="go('LISTENING')">LISTENING<span class="key">3</span></button>
+  <button class="btn"     data-s="THINKING"   onclick="go('THINKING')">THINKING<span class="key">4</span></button>
+  <button class="btn"     data-s="SPEAKING"   onclick="go('SPEAKING')">SPEAKING<span class="key">5</span></button>
+  <button class="btn"     data-s="MOVING"     onclick="go('MOVING')">MOVING<span class="key">6</span></button>
+  <button class="btn"     data-s="SEARCHING"  onclick="go('SEARCHING')">SEARCHING<span class="key">7</span></button>
+  <button class="btn"     data-s="APPROACHING" onclick="go('APPROACHING')">APPROACHING<span class="key">8</span></button>
+  <button class="btn" id="bAudio"  onclick="toggleAudio()">SIM AUDIO<span class="key">A</span></button>
+  <button class="btn" id="bDebug"  onclick="toggleDebug()">DEBUG<span class="key">D</span></button>
+  <button class="btn" id="bCycle"  onclick="cycleApproach()">CICLAR FASE<span class="key">C</span></button>
+  <button class="btn" id="bRemind" onclick="toggleReminder()">REMINDER<span class="key">R</span></button>
 </div>
 
 <div id="ws">WS: standalone</div>
@@ -86,9 +92,27 @@
     document.getElementById('bDebug').classList.toggle('on', face._debug);
   }
 
+  function cycleApproach() {
+    if (face.state !== 'APPROACHING') { go('APPROACHING'); return; }
+    if (face._approachPhase === 'seeking') {
+      face.setConfidence(0.85);
+    } else if (face._approachPhase === 'recognized') {
+      face.rejectApproach();
+    } else {
+      face.setState('APPROACHING');
+    }
+  }
+
+  function toggleReminder() {
+    if (face.state !== 'SEARCHING') go('SEARCHING');
+    face.setReminderActive(!face._reminderActive);
+    document.getElementById('bRemind').classList.toggle('on', face._reminderActive);
+  }
+
   // Sincronizar HUD con teclado
   window.addEventListener('keydown', e => {
-    const m = {'1':'IDLE','2':'WAKE','3':'LISTENING','4':'THINKING','5':'SPEAKING'};
+    const m = {'1':'IDLE','2':'WAKE','3':'LISTENING','4':'THINKING',
+               '5':'SPEAKING','6':'MOVING','7':'SEARCHING','8':'APPROACHING'};
     if (m[e.key]) document.querySelectorAll('.btn[data-s]').forEach(b =>
       b.classList.toggle('on', b.dataset.s === m[e.key]));
     if (e.key==='a'||e.key==='A') document.getElementById('bAudio').classList.toggle('on');
@@ -98,7 +122,6 @@
   // WebSocket — reconecta automáticamente cuando FastAPI esté disponible
   function connectWS() {
     const wsEl = document.getElementById('ws');
-
     const wsState = new WebSocket('ws://localhost:8000/ws/state');
     wsState.onopen    = () => { wsEl.textContent = 'WS: conectado'; wsEl.classList.add('ok'); };
     wsState.onmessage = e => {

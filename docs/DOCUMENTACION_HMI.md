@@ -1,11 +1,11 @@
 # INTERFAZ HUMANO-MÁQUINA (HMI)
 ## Robot Asistente Médico Domiciliario Meadlese
 
-> **Audiencia:** Andrés (líder software)  
-> **Estado:** 🟢 **En desarrollo** (Arquitectura definida, implementación en curso)
-> **Tecnología:** FastAPI + Chromium Kiosk + HTML/CSS/JS (Canvas 2D)  
-> **Plataforma destino:** Ubuntu 22.04 + ROS2 Humble  
-> **Última actualización:** 2026-03-16
+> **Audiencia:** Andrés (líder software)
+> **Estado:** Diseño completo · `baymax_face.js` v4.0 implementado (8/16 estados)
+> **Tecnología:** FastAPI + Chromium Kiosk + HTML/CSS/JS (Canvas 2D)
+> **Plataforma destino:** Ubuntu 22.04 + ROS2 Humble
+> **Última actualización:** 2026-03-17
 
 ---
 
@@ -13,633 +13,449 @@
 
 1. [Visión General](#1-visión-general)
 2. [Decisión Tecnológica](#2-decisión-tecnológica)
-3. [Arquitectura del Módulo HMI](#3-arquitectura-del-módulo-hmi)
-4. [Estados del Sistema — Definición Completa](#4-estados-del-sistema--definición-completa)
-5. [Mapa de Transiciones](#5-mapa-de-transiciones)
-6. [Flujos Principales de Uso](#6-flujos-principales-de-uso)
-7. [Diseño Visual — Cara Baymax](#7-diseño-visual--cara-baymax)
-8. [Integración con ROS2 y Sistemas Backend](#8-integración-con-ros2-y-sistemas-backend)
-9. [Interacción Física — Trackpad](#9-interacción-física--trackpad)
-10. [Estado Actual y Pendientes](#10-estado-actual-y-pendientes)
-11. [Comandos de Referencia Rápida](#11-comandos-de-referencia-rápida)
+3. [Estructura de Archivos](#3-estructura-de-archivos)
+4. [Filosofía Visual — Cara Baymax](#4-filosofía-visual--cara-baymax)
+5. [Estados del Sistema](#5-estados-del-sistema)
+6. [Mapa de Transiciones](#6-mapa-de-transiciones)
+7. [Flujos Principales de Uso](#7-flujos-principales-de-uso)
+8. [Especificaciones Técnicas — baymax_face.js](#8-especificaciones-técnicas--baymax_facejs)
+9. [Integración con ROS2 y Backend](#9-integración-con-ros2-y-backend)
+10. [Interacción Física — Trackpad](#10-interacción-física--trackpad)
+11. [Estado Actual y Pendientes](#11-estado-actual-y-pendientes)
+12. [Comandos de Referencia Rápida](#12-comandos-de-referencia-rápida)
 
 ---
 
 ## 1. VISIÓN GENERAL
 
-El módulo HMI es la capa de presentación del robot Meadlese. Tiene dos responsabilidades principales:
+El módulo HMI es la capa de presentación del robot Meadlese. Tiene dos responsabilidades:
 
-1. **Cara expresiva de Baymax** — pantalla de estado permanente del robot, con animaciones que comunican visualmente qué está haciendo el robot en cada momento.
-2. **Dashboard médico** — panel de datos del paciente, accesible por comando de voz o toque del trackpad, con visualización de signos vitales, próximas dosis e historial.
+1. **Cara expresiva de Baymax** — pantalla de estado permanente. Animaciones que comunican qué está haciendo el robot en cada momento, con la filosofía del personaje original: máxima expresividad con mínimos elementos (dos círculos + una línea).
+2. **Dashboard médico** — panel de datos del paciente, accesible por voz o trackpad.
 
 ### Principios de Diseño
 
 | Principio | Descripción |
 |-----------|-------------|
-| **Expresivo** | La cara comunica el estado del robot sin que el usuario tenga que leer texto |
-| **No intrusivo** | En IDLE la pantalla es casi completamente negra — no molesta en un entorno doméstico nocturno |
+| **Fiel al personaje** | Dos círculos sólidos negros + línea horizontal. Fondo blanco. Exactamente como Baymax original |
+| **Una idea por estado** | Cada estado tiene un solo concepto visual claro, sin efectos apilados |
+| **El cuerpo habla** | Las expresiones se comunican con movimiento (nod, shake, lean, bob), no con íconos ni texto |
+| **No intrusivo** | Fondo blanco limpio, no compite con el entorno doméstico ni con la carcasa blanca del robot |
 | **Reactivo** | Animaciones sincronizadas con audio real (amplitud de micrófono y TTS) |
-| **Seguro** | El dashboard con datos de salud se cierra automáticamente si no hay persona presente |
-| **Robusto** | Si el frontend falla, el robot sigue funcionando — HMI es una capa de presentación, no de control |
+| **Robusto** | Si el HMI falla, el robot sigue funcionando — es capa de presentación, no de control |
 
 ### Hardware de Pantalla
 
-- **Dispositivo:** Samsung laptop (trackpad integrado como superficie táctil)
-- **Montaje:** En el pecho del robot, cable de pantalla y USB ruteados por el cuello hacia el Dell
+- **Dispositivo:** Samsung laptop (trackpad integrado como entrada)
+- **Montaje:** Pecho del robot, cable ruteado por el cuello hacia el Dell
 - **Modo:** Chromium en pantalla completa (kiosk mode)
-- **Resolución objetivo:** 1366×768 o superior
-- **Nota para Linda/Sergio:** El diseño CAD debe incluir recorte para trackpad en la carcasa frontal
+- **Resolución objetivo:** 1366×768 px
+- **Nota CAD:** Linda/Sergio deben incluir recorte para trackpad en la carcasa frontal
 
 ---
 
 ## 2. DECISIÓN TECNOLÓGICA
 
-### Stack Seleccionado: FastAPI + Chromium Kiosk
+### Stack: FastAPI + Chromium Kiosk
 
-**Decisión tomada:** 2026-03-16  
+**Decisión cerrada:** 2026-03-17  
 **Alternativa descartada:** PyQt5/6
 
-### Tabla Comparativa
+**Argumento definitivo:** La cara Baymax animada es la feature más visible del proyecto. HTML Canvas 2D con `requestAnimationFrame` permite física de springs, interpolación de color, animaciones por estado y ciclos de iteración de segundos. PyQt requeriría QGraphicsScene y cada cambio implica reiniciar el proceso ROS2.
 
-| Criterio | PyQt5/6 | **Web App Local** ✅ |
-|----------|---------|---------------------|
-| Cara Baymax animada | Posible pero verboso (QGraphicsScene) | Canvas 2D + CSS — estándar de industria |
-| Integración ROS2 | Directo (mismo proceso Python) | FastAPI + rclpy, separación limpia |
-| Velocidad de desarrollo | Media — reinicio ROS2 por cada cambio UI | Alta — frontend hot-reload independiente |
-| Uso de RAM | ~50–100 MB | ~200–400 MB (Chromium overhead) |
-| Modo kiosko | Manual (showFullScreen + suprimir atajos SO) | `chromium --kiosk` — un comando, battle-tested |
-| Debugging | Acoplado — crash UI puede afectar ROS2 | Desacoplado — Chrome DevTools + logs FastAPI independientes |
-| Experiencia previa del equipo | Algo de PyQt | HTML/CSS/JS + FastAPI — todo conocido |
-
-**Argumento definitivo:** La cara Baymax animada es la feature más visible del robot. HTML Canvas con `requestAnimationFrame` permite ojos con pupila dinámica, parpadeo suave, onda de voz en tiempo real y expresiones transicionales con ciclos de iteración de segundos. El overhead de ~200–400 MB de Chromium es manejable con los 12 GB de RAM disponibles.
-
-> **Nota de recursos:** Con RTAB-Map consumiendo ~3–4 GB, queda margen suficiente. Verificar en pruebas cuando todos los nodos corran simultáneamente.
+**Overhead de RAM:** ~200–400 MB de Chromium sobre los ~3–4 GB de RTAB-Map. Con 12 GB disponibles hay margen suficiente. Verificar en pruebas con todos los nodos simultáneos.
 
 ### Arquitectura de Capas
 
 ```
-ROS2 graph ──→ FastAPI (Python, proceso separado, mismo PC)
-                  │  suscribe a /health/*, /atlas/*, /robot/speak
-                  │  publica a /hmi/state, /hmi/action
-                  │
-                  ├── REST endpoints (datos dashboard, BD)
-                  ├── WebSocket /ws/state    (cambios de estado → cara)
-                  └── WebSocket /ws/audio    (nivel de amplitud → boca)
-                              │
-                    Chromium (kiosk mode, localhost:8000)
-                              │
-                    HTML + Canvas 2D + CSS animations
-                    (cara Baymax + dashboard)
+ROS2 graph ──> FastAPI (Python, proceso separado, mismo PC)
+                  |  suscribe a /health/*, /atlas/*, /robot/speak, /patient/*
+                  |  publica a /hmi/state, /hmi/action
+                  |
+                  +-- REST endpoints  (datos dashboard -> BD)
+                  +-- WebSocket /ws/state   (cambios de estado -> cara)
+                  +-- WebSocket /ws/audio   (nivel de amplitud -> boca/anillo)
+                              |
+                    Chromium (kiosk, localhost:8000)
+                              |
+                    index.html + baymax_face.js + state_machine.js
+                    + dashboard.js + style.css
 ```
 
 ---
 
-## 3. ARQUITECTURA DEL MÓDULO HMI
+## 3. ESTRUCTURA DE ARCHIVOS
 
-### Estructura de Archivos (Target)
-
-La siguiente estructura de archivos es el objetivo para la implementación final. Los archivos existentes en `hmi/` (`baymax_face.js`, `index_test.html`) son prototipos iniciales que serán integrados o reemplazados dentro de esta arquitectura.
+### Ubicación en el Repositorio
 
 ```
-hmi/                                     # Módulo HMI (Meadlease/hmi/)
-├── backend/                             # Lógica de servidor FastAPI
-│   ├── main.py                          # FastAPI app — entrypoint
-│   ├── ros2_bridge.py                   # rclpy subscriber/publisher thread
-│   ├── audio_level.py                   # Captura nivel de amplitud sounddevice → WS
-│   ├── routers/
-│   │   ├── state.py                     # WebSocket /ws/state
-│   │   ├── audio.py                     # WebSocket /ws/audio
-│   │   └── dashboard.py                 # REST endpoints datos BD
-│   └── requirements.txt                 # Dependencias de Python (FastAPI, uvicorn, rclpy)
-│
-├── frontend/                            # Interfaz de usuario (Chromium Kiosk)
-│   ├── index.html                       # App HTML única
-│   ├── static/
-│   │   ├── js/
-│   │   │   ├── main.js                  # Lógica principal, FSM, WebSocket client
-│   │   │   ├── baymax_face.js           # Renderizado Canvas — cara Baymax (prototipo a integrar)
-│   │   │   └── dashboard.js             # Lógica del panel de datos del paciente
-│   │   └── css/
-│   │       └── style.css                # Variables CSS + layout kiosk
-│   └── public/                          # Assets (imágenes, fuentes, etc.)
-│
-└── README.md                            # Instrucciones de lanzamiento y descripción
+Meadlease/
++-- hmi/                              <- Módulo HMI (desarrollo standalone aquí)
+|   +-- README.md                     [OK] existe
+|   +-- requirements.txt              <- pendiente crear
+|   +-- .env.example                  <- pendiente (si necesita vars de entorno)
+|   +-- server.py                     <- FastAPI entrypoint
+|   +-- ros2_bridge.py                <- hilo rclpy thread-safe con asyncio
+|   +-- audio_level.py                <- RMS sounddevice -> WebSocket /ws/audio
+|   +-- routers/
+|   |   +-- dashboard.py              <- REST endpoints (reutiliza medical_db)
+|   |   +-- state.py                  <- WebSocket /ws/state
+|   +-- static/
+|       +-- index.html                <- App HTML única (kiosk layout)
+|       +-- baymax_face.js            [OK] v4.0 implementado
+|       +-- state_machine.js          <- FSM frontend (16 estados)
+|       +-- dashboard.js              <- Panel de datos del paciente
+|       +-- style.css                 <- Variables CSS + layout kiosk
+|
++-- ros2_ws/src/robot_medical/        <- Al migrar a ROS2, hmi/ se linkea aquí
 ```
 
-### Lanzar el HMI
+### Por Qué hmi/ en Raíz (No Dentro de atlas/)
 
-```bash
-# Terminal 1 — servidor FastAPI
-cd ~/Meadlease/hmi
-uvicorn server:app --host 127.0.0.1 --port 8000 --reload
+El HMI consume topics de todo el sistema ROS2, no solo de Atlas. Si Atlas se cae, el dashboard sigue siendo útil. Si el HMI se cae, Atlas sigue hablando. Son procesos con ciclos de vida independientes.
 
-# Terminal 2 — Chromium en modo kiosko
-chromium-browser --kiosk \
-  --app=http://localhost:8000 \
-  --no-first-run \
-  --disable-pinch \
-  --overscroll-history-navigation=0
-
-# Salir del kiosko (durante desarrollo)
-# Alt+F4 o Ctrl+Alt+T para terminal
-```
-
-### Integrar en el Launch del Robot
-
-```python
-# En bringup.launch.py
-Node(
-    package='robot_medical',
-    executable='hmi_launcher.py',
-    name='hmi_node',
-    output='screen'
-)
-```
+La migración a ROS2 será trivial: a diferencia de Atlas (que cambió de plataforma Windows→Ubuntu), el HMI usa FastAPI desde el día uno — el mismo servidor que correrá en el robot. Solo se añade `ros2_bridge.py` encima.
 
 ---
 
-## 4. ESTADOS DEL SISTEMA — DEFINICIÓN COMPLETA
+## 4. FILOSOFÍA VISUAL — CARA BAYMAX
 
-El HMI tiene **16 estados**, cada uno con visual específico, entradas, salidas y nodos ROS2 conectados. Se organizan en cuatro grupos funcionales.
+### Modo Claro
 
-> **Criterio de estado propio:** visual diferente + lógica HMI diferente + transiciones propias.  
-> Los estados con 🔒 bloquean subsistemas durante su ejecución.
+- **Fondo:** `#FFFFFF` — blanco puro. No cambia en ningún estado.
+- **Ojos:** `#111111` — casi negro. Son lo único que cambia color entre estados.
+- **Línea:** `#111111` — misma tinta que los ojos.
+
+El robot físico es blanco. La pantalla blanca se integra con la carcasa en lugar de contrastar con ella.
+
+### Anatomía de la Cara
+
+```
+         o-----------------o
+      ojo izq    linea   ojo der
+
+Ojos: circulos solidos con sombra sutil de elevacion
+Linea: conecta exactamente los centros de los circulos
+       (en SPEAKING se convierte en onda de voz)
+```
+
+Geometría base a resolución 1366×768:
+- Radio de cada ojo: 58 px
+- Distancia centro-a-centro: 178 × 2 = 356 px
+- Grosor de línea: 4.5 px
+- Todo escalado con factor `S = canvas.width / 1366`
+
+### Cuatro Reglas Inquebrantables
+
+1. **El fondo es siempre blanco** — sin excepciones
+2. **Sin íconos ni símbolos sobre los ojos** — el movimiento lo dice todo
+3. **Una sola idea visual por estado** — no apilar efectos
+4. **Todas las transiciones duran 320 ms** con `easeInOutCubic`. Excepción: WAKE→LISTENING dura 480 ms para que el color "se tiña" gradualmente
+
+### Paleta de Color por Estado
+
+| Estado | Color ojos | RGB | Concepto visual |
+|--------|-----------|-----|-----------------|
+| IDLE | Negro | `(17,17,17)` | Reposo |
+| WAKE | Negro | `(17,17,17)` | Activación con movimiento |
+| LISTENING | Azul profundo | `(21,101,192)` | Atención activa |
+| THINKING | Ámbar vivo | `(205,105,15)` | Concentración |
+| SPEAKING | Negro | `(17,17,17)` | Habla con onda |
+| MOVING | Negro | `(17,17,17)` | Movimiento neutral |
+| SEARCHING | Negro / Teal | `(17,17,17)` / `(13,122,90)` | Búsqueda / Misión activa |
+| APPROACHING | Negro | `(17,17,17)` | Análisis con movimiento |
+| GREETING | Negro | `(17,17,17)` | Alegría (medias lunas) |
+| DISPENSING | Ámbar | `(205,105,15)` | Concentración médica |
+| MEASURING | Azul | `(21,101,192)` | Calma médica |
+| REMINDER | Teal | `(13,122,90)` | Misión activa |
+| SUCCESS | Negro | `(17,17,17)` | Celebración (medias lunas + check) |
+| DASHBOARD | N/A | — | Pantalla de datos completa |
+| ALERT | Rojo | `(200,30,30)` | Urgencia médica |
+| ERROR | Ámbar | `(205,105,15)` | Error técnico (no alarmar) |
+
+---
+
+## 5. ESTADOS DEL SISTEMA
+
+Los estados se organizan en cuatro grupos. Los marcados con [OK] están implementados en `baymax_face.js` v4.0.
 
 ---
 
 ### Grupo A — Núcleo Conversacional
 
-#### Estado 1: IDLE
+#### IDLE [OK]
 
-**Descripción:** Cara Baymax pura en reposo. Modo screensaver. Porcupine corre en background 24/7. Se activa tras timeout de inactividad o ausencia de persona detectada por ultrasonidos.
+**Concepto:** Cara en reposo pura. Porcupine corre en background 24/7.
 
-| Elemento | Detalle |
-|----------|---------|
-| **Visual cara** | Ojos blancos (elipses) / fondo `#000000` / parpadeo aleatorio cada 3–6 s / micro-animación de "respiración" (escala `1.0 → 1.02 → 1.0` en loop de 4 s) |
-| **Texto en pantalla** | Ninguno |
-| **Audio** | Silencio — Porcupine escucha en background |
-| **Timeout** | No aplica — estado de reposo permanente |
+**Visual:**
+- Parpadeo aleatorio cada 3–7.5 s con posibilidad de doble parpadeo (15% de probabilidad). El cierre usa `easeInQuad` (115 ms), la apertura usa `easeOutCubic` (160 ms).
+- Micro-drift sinusoidal muy sutil (±1.5 px, período ~5–6 s) que hace que los ojos "floten" orgánicamente.
+- Respiración solo en eje Y de los ojos (±1.5%, período 4.5 s).
 
-**Entradas:**
-- `SUCCESS` → timer 3 s completado
-- `SPEAKING` → playback terminado sin follow-up pendiente
-- `DASHBOARD` → timeout 60 s o sin persona detectada
-- `ERROR` → auto-recovery exitoso
-- `ALERT` → alerta normalizada o cancelada por usuario
-- `SEARCHING` → timeout 120 s sin encontrar al usuario
-
-**Salidas:**
-- → `WAKE`: wake word "Atlas" detectado (Porcupine)
-- → `REMINDER`: `scheduler_node` dispara horario de medicación
-- → `DASHBOARD`: botón trackpad o comando de voz "ver panel"
-
-**Nodos ROS2 / Sistemas:**
-- `atlas_ros2_node` (Porcupine activo 24/7)
-- `/atlas/listening` → `Bool = false`
-- `scheduler_node` (poll cada 30 s contra tabla `horarios_medicacion`)
-- `/ultrasonic/front` (detección de presencia)
+**Entradas:** SUCCESS, SPEAKING, DASHBOARD, ERROR, ALERT, SEARCHING  
+**Salidas:** → WAKE (wake word), → REMINDER (scheduler), → DASHBOARD (trackpad)  
+**Nodos:** `atlas_ros2_node` (Porcupine 24/7), `scheduler_node`, `/ultrasonic/front`
 
 ---
 
-#### Estado 2: WAKE
+#### WAKE [OK]
 
-**Descripción:** Transición animada al detectar la wake word. Duración fija ~1.2 s. No acepta input de voz ni comandos de movimiento durante este tiempo.
+**Concepto:** Activación al detectar "Atlas". Sincronizado con el "¿Sí?" de Camila.
 
-| Elemento | Detalle |
-|----------|---------|
-| **Visual cara** | Ojos cerrados → abren con efecto bloom (radius `0 → normal` con overshoot) / destello blanco rápido / ondas de sonar irradiando desde el centro |
-| **Texto en pantalla** | Ninguno |
-| **Duración** | 1.2 s fijo, luego transición automática a LISTENING |
+**Visual en 3 actos:**
+1. **(0–220 ms)** Pulso oscuro parte del centro de la línea y viaja hacia ambos ojos con gradiente (transparente → 90% opacidad en la punta). Flash de impacto al llegar.
+2. **(180–480 ms)** Bloom: `shadowBlur` de 24→79 px, sube rápido (35% del tiempo) y decae suavemente.
+3. **(200 ms en adelante)** Dos anillos expansivos emergen desde cada ojo (no desde el centro de la cara).
+4. **(0–1200 ms)** Nod: sube con `easeOutQuart` hasta 18 px en 600 ms, baja con `easeInOutCubic` en 600 ms. Sincronizado con la duración del "¿Sí?".
+5. Ojos hacen overshoot con spring underdamped (kick `vel += 5.5`, `k=180, d=14`).
 
-**Entradas:**
-- `IDLE` → wake word "Atlas" detectado (Porcupine)
+**Transición a LISTENING:** El bloom blanco se tiñe de azul conforme `transT` avanza (480 ms). El anillo de LISTENING aterriza desde el radio del bloom con `easeOutCubic` en 500 ms.
 
-**Salidas:**
-- → `LISTENING`: animación completada (timer 1.2 s)
-
-**Nodos ROS2 / Sistemas:**
-- `/atlas/listening` → `Bool = true`
-- `atlas_ros2_node` (evento `WAKE_WORD_DETECTED` en bus interno)
+**Entradas:** IDLE (wake word)  
+**Salidas:** → LISTENING (automático a 1.2 s)
 
 ---
 
-#### Estado 3: LISTENING
+#### LISTENING [OK]
 
-**Descripción:** Atlas escuchando activamente. VAD y Vosk corren en paralelo. Vosk puede interceptar y saltar a SPEAKING directamente si detecta comando local (~480 ms, sin pasar por cloud).
+**Concepto:** Escuchando activamente. El anillo reacciona a la voz del usuario.
 
-| Elemento | Detalle |
-|----------|---------|
-| **Visual cara** | Ojos azul `#378ADD` con halo pulsante sincronizado con amplitud del micrófono / anillo de onda reactivo alrededor de los ojos / texto "Escuchando..." muy sutil en parte inferior |
-| **Texto en pantalla** | `"Escuchando..."` — fuente pequeña, baja opacidad |
+**Visual:**
+- Ojos cambian a azul profundo `(21,101,192)`.
+- Un anillo rodea cada ojo. Radio base + hasta 26 px extra según amplitud del micrófono. Pulso de respiración suave independiente.
+- Al venir de WAKE: el anillo hereda el radio del bloom y "aterriza" en posición normal con `easeOutCubic` en 500 ms.
+- Texto "E S C U C H A N D O" muy sutil en la parte inferior (38% de opacidad).
 
-**Entradas:**
-- `WAKE` → animación completada
-- `SPEAKING` → robot hizo pregunta y espera respuesta del usuario
-
-**Salidas:**
-- → `THINKING`: `SPEECH_END` detectado por VAD (audio capturado)
-- → `SPEAKING`: `COMMAND_DETECTED` local (Vosk) — respuesta directa ~480 ms
-- → `IDLE`: timeout 10 s sin detección de voz
-
-**Nodos ROS2 / Sistemas:**
-- `/atlas/listening` → `Bool = true`
-- `atlas_ros2_node` (VAD WebRTC + Vosk — 9 comandos / 5 categorías)
-- `audio_buffer` (PCM frames acumulados)
-- PyAudio stream 16 kHz mono
+**Entradas:** WAKE, SPEAKING (robot hizo pregunta)  
+**Salidas:** → THINKING (SPEECH_END), → SPEAKING (Vosk local ~480 ms), → IDLE (timeout 10 s)  
+**Nodos:** `atlas_ros2_node` (VAD + Vosk), `/atlas/listening = true`
 
 ---
 
-#### Estado 4: THINKING
+#### THINKING [OK]
 
-**Descripción:** Procesando con Groq LLM. Duración variable ~0.4–1.5 s. Construye contexto del paciente desde la BD antes de llamar al LLM. El intent extraído aquí determina el siguiente estado.
+**Concepto:** Procesando. El cabeceo y el punto viajero expresan concentración.
 
-| Elemento | Detalle |
-|----------|---------|
-| **Visual cara** | Ojos ámbar `#BA7517` / mirada desplazada ~15% arriba-izquierda (expresión "pensativa") / 3 puntos pequeños orbitando lentamente alrededor de los ojos |
-| **Texto en pantalla** | Ninguno |
+**Visual:**
+- Ojos cambian a ámbar vivo `(205,105,15)`.
+- Toda la cara rota suavemente ±6.3° con período ~8 s (`easeInOutSine`). El cabeceo comunica "estoy pensando" sin necesitar ningún ícono.
+- Un punto oscuro viaja de lado a lado sobre la línea de conexión con movimiento sinusoidal suavizado.
 
-**Entradas:**
-- `LISTENING` → `SPEECH_END` con audio capturado listo para STT
-
-**Salidas:**
-- → `SPEAKING`: respuesta LLM lista → Azure TTS generando
-- → `DISPENSING`: intent = dispensar + `/patient/identified` confirmado
-- → `MEASURING`: intent = medir signos vitales
-- → `DASHBOARD`: intent = ver historial / panel de datos
-- → `ERROR`: timeout 15 s o fallo total de API sin fallback disponible
-
-**Nodos ROS2 / Sistemas:**
-- `atlas_ros2_node` (Groq Whisper STT → Llama 3.3 70B)
-- `medical_db.get_resumen_paciente()` + `get_proxima_dosis()` (contexto dinámico)
+**Entradas:** LISTENING (SPEECH_END)  
+**Salidas:** → SPEAKING, → DISPENSING, → MEASURING, → DASHBOARD, → ERROR  
+**Nodos:** `atlas_ros2_node` (Groq Whisper STT + Llama 3.3 70B), `medical_db`
 
 ---
 
-#### Estado 5: SPEAKING
+#### SPEAKING [OK]
 
-**Descripción:** Atlas hablando. Onda de boca sincronizada con amplitud real del audio TTS a través de WebSocket dedicado. El nivel de audio sale desde `sounddevice` → FastAPI `/ws/audio` → Canvas.
+**Concepto:** La línea se convierte en la voz.
 
-| Elemento | Detalle |
-|----------|---------|
-| **Visual cara** | Ojos blancos ligeramente más grandes (expresión "entusiasta") / onda senoidal animada en zona boca con amplitud proporcional al nivel de audio / sin texto |
-| **Sincronización** | `sounddevice` output level → `audio_level.py` → WebSocket `/ws/audio` → `baymax_face.js` — requiere implementación explícita |
+**Visual:**
+- La línea de conexión se transforma en onda senoidal (4 ciclos en el ancho). La amplitud sigue el nivel RMS del TTS en tiempo real.
+- Envolvente de Hanning: la onda llega a cero en los extremos, sin discontinuidades donde la línea toca los ojos.
+- En picos bruscos de audio (delta > 0.35): los ojos hacen un jiggle vertical con spring underdamped (`k=100, d=12`). El ojo "rebota" con la sílaba fuerte.
 
-**Entradas:**
-- `THINKING` → respuesta LLM generada y TTS listo
-- `GREETING` → saludo animado completado
-
-**Salidas:**
-- → `LISTENING`: robot terminó con pregunta abierta (espera respuesta)
-- → `IDLE`: monólogo terminado sin pregunta pendiente
-- → `DISPENSING`: confirmación verbal de dispensar recibida
-- → `MEASURING`: instrucción verbal "apoya el dedo" dada
-
-**Nodos ROS2 / Sistemas:**
-- `atlas_ros2_node` (Azure TTS Camila `es-PE-CamilaNeural`)
-- `/robot/speak` (`std_msgs/String`) — TTS proactivo
-- `sounddevice` output level → FastAPI WebSocket `/ws/audio` → HMI Canvas
-
-> **Nota de implementación:** La sincronización de la boca es la parte más compleja del HMI. `audio_level.py` debe capturar el RMS del buffer de `sounddevice` en intervalos de ~20 ms y publicarlo vía WebSocket al frontend. No es automático con la implementación actual de Atlas.
+**Sincronización:** `sounddevice` output → `audio_level.py` → `/ws/audio` → `setAudioLevel()`  
+**Entradas:** THINKING, GREETING  
+**Salidas:** → LISTENING, → IDLE, → DISPENSING, → MEASURING  
+**Nodos:** `atlas_ros2_node` (Azure TTS Camila), `/robot/speak`
 
 ---
 
 ### Grupo B — Movilidad
 
-#### Estado 6: MOVING
+#### MOVING [OK]
 
-**Descripción:** Desplazamiento a destino conocido con `goal_pose` definido. No hay búsqueda activa. El dispensador queda bloqueado durante todo el movimiento.
+**Concepto:** El robot "camina contento". Efecto chill — todo bajo control.
 
-> **Nombre anterior:** NAVIGATING (renombrado para claridad — MOVING = destino conocido, SEARCHING = exploración activa)
+**Visual:**
+- Bob de caminata con dos frecuencias superpuestas:
+  - Onda lenta 1.2 Hz, amplitud 6 px: balanceo del cuerpo
+  - Onda rápida 2.4 Hz, amplitud 2.5 px: impacto de cada paso
+- La rotación sigue el balanceo lento (±1.26°).
+- Cara completamente inexpresiva. El movimiento hace todo el trabajo expresivo.
+- Al entrar/salir del estado, el bob se mezcla suavemente (blend con `transT`).
 
-| Elemento | Detalle |
-|----------|---------|
-| **Visual cara** | Ojos blancos con pupila desplazada hacia adelante / overlay sutil: flecha direccional + `"Dirigiéndome a [zona]"` / mini-indicador de batería opcional |
-| **🔒 Bloquea** | Dispensador — `medication_node` rechaza comandos de dispensación |
-
-**Entradas:**
-- `REMINDER` → misión activa, destino = última posición conocida del usuario
-- `SPEAKING` → comando de voz "ven aquí" o "regresa a base"
-
-**Salidas:**
-- → `SEARCHING`: llegó a destino pero sin usuario presente
-- → `APPROACHING`: persona detectada durante el trayecto
-- → `IDLE`: llegó a base sin misión activa pendiente
-- → `ERROR`: Nav2 falla o path completamente bloqueado
-
-**Nodos ROS2 / Sistemas:**
-- Nav2 (`/goal_pose`)
-- `/cmd_vel` (`geometry_msgs/Twist`)
-- `esp32_bridge_node` → STM32 → ESP32 Movilidad → motores BLDC
-- `state_machine_node` (tracking del goal activo)
+**Bloquea:** Dispensador (`medication_node` rechaza comandos)  
+**Entradas:** REMINDER, SPEAKING (comando "ven aquí")  
+**Salidas:** → SEARCHING, → APPROACHING, → IDLE, → ERROR  
+**Nodos:** Nav2, `/cmd_vel`, `esp32_bridge_node`
 
 ---
 
-#### Estado 7: SEARCHING
+#### SEARCHING [OK]
 
-**Descripción:** Búsqueda activa del usuario. Robot explora zonas conocidas del apartamento. Kinect y `person_detector_node` corriendo continuamente. Si hay un REMINDER activo, el banner del medicamento es siempre visible en la parte superior.
+**Concepto:** Escaneando el entorno. Con misión activa, los ojos cambian a teal.
 
-| Elemento | Detalle |
-|----------|---------|
-| **Visual cara** | Ojos blancos moviéndose suavemente izquierda→derecha en loop (efecto scan) / línea de scan horizontal pulsante / si REMINDER activo: banner superior persistente con nombre del medicamento y urgencia progresiva |
+**Visual:**
+- Ojos barren ±42 px lateralmente con seno natural (período 2.5 s). El movimiento es orgánico, no mecánico.
+- Un shimmer elíptico (gradiente radial brillante, ~28×7 px) viaja sobre la línea cada 1.8 s, como un ping de sonar.
+- Con `setReminderActive(true)`: los ojos transicionan suavemente a teal `(13,122,90)` mediante `_reminderBlend` (EMA con factor 0.003/ms).
 
-**Entradas:**
-- `REMINDER` → inicio de misión de búsqueda (inmediato al disparar)
-- `MOVING` → llegó a destino sin usuario presente
-- `IDLE` → comando de voz "búscame"
-
-**Salidas:**
-- → `APPROACHING`: `/person/detected = true` (Kinect skeleton tracking)
-- → `IDLE`: timeout 120 s sin encontrar al usuario (misión no urgente)
-- → `ALERT`: misión REMINDER crítica — timeout >60 min sin entrega de medicación
-
-**Nodos ROS2 / Sistemas:**
-- `person_detector_node` (`/person/detected`, `/person/position`)
-- Nav2 (patrón de exploración por zonas conocidas del mapa)
-- `/kinect2/sd/points` (skeleton tracking)
-- `/ultrasonic/front` y `/ultrasonic/rear`
+**API:** `setReminderActive(bool)` — transición suave de color blanco ↔ teal  
+**Entradas:** REMINDER, MOVING, IDLE (comando "búscame")  
+**Salidas:** → APPROACHING, → IDLE (timeout 120 s), → ALERT (REMINDER >60 min)  
+**Nodos:** `person_detector_node`, Nav2, `/kinect2/sd/points`
 
 ---
 
-#### Estado 8: APPROACHING
+#### APPROACHING [OK]
 
-**Descripción:** Persona detectada geométricamente. Robot se aproxima. Cámara portátil activa para reconocimiento facial paralelo al movimiento. Nav2 usa `/person/position` como goal dinámico.
+**Concepto:** Analizando. El movimiento del cuerpo comunica los tres momentos.
 
-| Elemento | Detalle |
-|----------|---------|
-| **Visual cara** | Ojos blancos ligeramente agrandados (expresión expectante/amigable) / animación zoom-in sutil en los ojos / `"?"` pequeño visible mientras no confirma identidad del usuario |
+**Visual — seeking:** La cara se inclina de lado a lado con oscilación sinusoidal lenta (período 2.2 s, ángulo ±8°). Cara completamente inexpresiva. El lean comunica "estoy analizando" sin ningún ícono añadido.
 
-**Entradas:**
-- `SEARCHING` → `/person/detected = true`
-- `MOVING` → persona detectada durante el trayecto hacia destino
+**Visual — recognized:** La inclinación para inmediatamente. Un kick al spring vertical dispara 2–3 nods naturales que decaen solos. Spring underdamped deliberadamente (`k=140, d=9`): el movimiento tiene overshoot y rebote orgánico, igual que cuando alguien dice "sí" con la cabeza.
 
-**Salidas:**
-- → `GREETING`: `/patient/identified` recibido con confianza ≥ umbral configurado
-- → `SPEAKING`: dentro de rango, reconocimiento no exitoso → `"¿Eres tú, [nombre]?"`
-- → `SEARCHING`: persona se movió y se perdió de vista (timeout 8 s)
+**Visual — rejected:** Kick al spring horizontal dispara 3–4 sacudidas que decaen solos (`k=160, d=8`). Cara inexpresiva durante todo el movimiento. El "no" es el movimiento, no una expresión facial.
 
-**Nodos ROS2 / Sistemas:**
-- `face_recognition_node` (`/patient/identified`, `/patient/confidence`)
-- Nav2 (goal dinámico — `/person/position` actualizado a 2 Hz)
-- Cámara portátil USB
-- `/patient/confidence` (`std_msgs/Float32`) — umbral configurable en `settings.py`
+**API:**
+- `setConfidence(0–1)`: umbral ≥ 0.75 dispara `recognized`
+- `rejectApproach()`: dispara `rejected`
+
+**Entradas:** SEARCHING, MOVING  
+**Salidas:** → GREETING (reconocido), → SEARCHING (rechazado/timeout 8 s)  
+**Nodos:** `face_recognition_node`, `/patient/identified`, `/patient/confidence`
 
 ---
 
 ### Grupo C — Reconocimiento y Tareas Médicas
 
-#### Estado 9: GREETING
+#### GREETING — pendiente
 
-**Descripción:** Usuario reconocido exitosamente. Estado de celebración breve (~2–3 s). `scheduler_node` consultado: ¿hay misión médica pendiente para esta persona?
+**Concepto:** Celebración al reconocer al usuario. Baymax clásico.
 
-> **Nombre anterior:** IDENTIFIED (renombrado — GREETING describe mejor el visual y la interacción)
+**Visual:** Ojos se transforman en medias lunas (de `ellipse()` a `drawArc()`). Transición de morph en 300 ms. Texto "¡Hola, [nombre]!" centrado en fuente grande. Duración ~2.5 s fijo.
 
-| Elemento | Detalle |
-|----------|---------|
-| **Visual cara** | Ojos → medias lunas (sonrisa Baymax clásica) / flash verde suave / `"¡Hola, [nombre]!"` centrado en fuente grande / partículas sutiles opcionales |
-| **Duración** | 2–3 s fijo antes de transición |
-
-**Entradas:**
-- `APPROACHING` → `/patient/identified` recibido con confianza ≥ umbral
-
-**Salidas:**
-- → `DISPENSING`: REMINDER activo para este usuario en este momento
-- → `MEASURING`: medición programada urgente para este usuario
-- → `SPEAKING`: saludo verbal + `"¿En qué puedo ayudarte?"` (sin misión pendiente)
-
-**Nodos ROS2 / Sistemas:**
-- `/patient/identified` (`std_msgs/String`) — ID del paciente
-- `medical_db.get_resumen_paciente()` — nombre, medicamentos activos
-- `scheduler_node` — consulta si hay misión pendiente para `patient_id`
-- `atlas_ros2_node` (TTS saludo personalizado con nombre real)
+**Entradas:** APPROACHING (reconocido)  
+**Salidas:** → DISPENSING (REMINDER activo), → MEASURING (medición urgente), → SPEAKING (sin misión)  
+**Nodos:** `medical_db.get_resumen_paciente()`, `scheduler_node`, `atlas_ros2_node` (TTS saludo)
 
 ---
 
-#### Estado 10: DISPENSING 🔒
+#### DISPENSING — pendiente
 
-**Descripción:** Dispensación en ejecución. Estado bloqueante: robot completamente inmóvil y sin aceptar comandos de voz (excepto "cancelar"). Load cell confirma el resultado de la dispensación por comparación de peso pre/post.
+**Concepto:** Dispensación en ejecución. Estado bloqueante.
 
-| Elemento | Detalle |
-|----------|---------|
-| **Visual cara** | Ojos ámbar concentrados / animación píldora cayendo (overlay) / `"[Medicamento] — [N] tabletas"` visible / barra de progreso lineal / aviso `"Por favor, no se mueva"` |
-| **🔒 Bloquea** | Robot inmóvil (`/cmd_vel` bloqueado) / sistema de voz desactivado (excepto "cancelar") |
+**Visual:** Ojos ámbar concentrados. Overlay: `"[Medicamento] — [N] tabletas"`, barra de progreso lineal, `"Por favor no se mueva"`. Load cell confirma el resultado.
 
-**Entradas:**
-- `GREETING` → REMINDER activo para este usuario
-- `SPEAKING` → confirmación verbal de dispensar
-- `THINKING` → intent = dispensar + usuario confirmado en `/patient/identified`
-
-**Salidas:**
-- → `SUCCESS`: load cell confirma peso correcto post-dispensación
-- → `ERROR`: fallo mecánico del carrusel o timeout del dispensador
-- → `ALERT`: load cell detecta peso incorrecto (pastilla no salió del compartimento)
-
-**Nodos ROS2 / Sistemas:**
-- `medication_node` (`/dispense_medication`)
-- Servicio `/dispense` → respuesta `{éxito / error / timeout}`
-- `esp32_medical_node` (carrusel stepper + servo escapement)
-- HX711 + load cell (verificación peso pre/post por compartimento)
-- `medical_db.registrar_dispensacion()` — timestamp + usuario + medicamento + estado
+**Bloquea:** Robot inmóvil (`/cmd_vel` bloqueado), voz desactivada excepto "cancelar"  
+**Entradas:** GREETING, SPEAKING (confirmación verbal), THINKING (intent dispensar)  
+**Salidas:** → SUCCESS (load cell OK), → ERROR (fallo mecánico), → ALERT (peso incorrecto)  
+**Nodos:** `medication_node`, `esp32_medical_node`, HX711 load cell, `medical_db.registrar_dispensacion()`
 
 ---
 
-#### Estado 11: MEASURING
+#### MEASURING — pendiente
 
-**Descripción:** Midiendo signos vitales. Requiere cooperación activa del usuario. Valores BPM, SpO₂ y temperatura aparecen progresivamente en tiempo real. Semáforo visual de normalidad por cada valor. Guardado automático en BD al completar.
+**Concepto:** Midiendo signos vitales. Requiere cooperación del usuario.
 
-| Elemento | Detalle |
-|----------|---------|
-| **Visual cara** | Ojos azul sereno `#378ADD` / heartbeat SVG pulsante central / secuencia: `"Apoya el dedo..."` → BPM aparece → SpO₂ aparece → Temp aparece / semáforo de normalidad (verde / ámbar / rojo) por valor |
-| **Rangos de referencia** | BPM: 60–100 / SpO₂: ≥ 95% / Temperatura: 36.1–37.2°C |
+**Visual:** Ojos azul sereno. SVG de heartbeat pulsante central. Secuencia progresiva: "Apoya el dedo..." → BPM aparece → SpO₂ → Temperatura. Semáforo de normalidad por valor (verde / ámbar / rojo). Rangos: BPM 60–100, SpO₂ ≥95%, Temp 36.1–37.2°C.
 
-**Entradas:**
-- `SPEAKING` → instrucción "mide mis signos vitales" dada verbalmente
-- `THINKING` → intent = medir confirmado
-- `GREETING` → medición programada urgente para este usuario
-- `DASHBOARD` → botón `"Medir ahora"` presionado con trackpad
-
-**Salidas:**
-- → `SPEAKING`: resultados listos → Atlas los verbaliza con contexto
-- → `SUCCESS`: todos los valores registrados correctamente en BD
-- → `ALERT`: algún valor fuera del rango de referencia configurado
-- → `ERROR`: sensor MAX30102 no responde (timeout 30 s)
-
-**Nodos ROS2 / Sistemas:**
-- `/health/bpm` (`std_msgs/Int32`)
-- `/health/spo2` (`std_msgs/Int32`)
-- `/health/temperature` (`std_msgs/Float32`)
-- `vital_signs_node` (ESP32 Médica → STM32 → micro-ROS → PC)
-- `medical_db.registrar_signos_vitales()` — trío BPM/SpO₂/Temp por fila
+**Entradas:** SPEAKING, THINKING, GREETING, DASHBOARD (botón "Medir ahora")  
+**Salidas:** → SUCCESS, → ALERT (valor fuera de rango), → ERROR (sensor timeout 30 s)  
+**Nodos:** `/health/bpm`, `/health/spo2`, `/health/temperature`, `vital_signs_node`, `medical_db.registrar_signos_vitales()`
 
 ---
 
-#### Estado 12: REMINDER
+#### REMINDER — pendiente
 
-**Descripción:** Estado de misión activa disparado por el scheduler. Robot sale a buscar al usuario con propósito definido. El banner del medicamento pendiente es visible en todo momento y su urgencia visual aumenta con el tiempo transcurrido.
+**Concepto:** Misión activa de medicación. El robot sale a buscar al usuario con propósito.
 
-| Elemento | Detalle |
-|----------|---------|
-| **Visual cara** | Banner superior persistente `"Hora de [Medicamento] — [N] tabletas"` (color teal, progresivamente más visible) / cara de SEARCHING debajo con ojos color teal `#1D9E75` |
-| **Urgencia progresiva** | 0–15 min: banner discreto / 15–30 min: banner ámbar / >30 min: banner rojo pulsante |
+**Visual:** Banner superior persistente `"Hora de [Medicamento] — [N] tabletas"` en teal. Cara de SEARCHING debajo con ojos teal. Urgencia visual progresiva: 0–15 min discreto, 15–30 min ámbar, >30 min rojo pulsante.
 
-**Entradas:**
-- `IDLE` → `scheduler_node` dispara horario (verificación cada 30 s contra tabla `horarios_medicacion`)
-
-**Salidas:**
-- → `SEARCHING`: inicio de búsqueda inmediata (sub-estado visual, mismo REMINDER activo)
-- → `ALERT`: timeout crítico >60 min sin entrega de medicación
-
-**Nodos ROS2 / Sistemas:**
-- `scheduler_node` (topic `/scheduler/reminder` con payload: `patient_id`, `medication_id`, `scheduled_time`)
-- `medical_db.get_proxima_dosis()` — nombre, dosis, compartimento
-- `state_machine_node` (registra misión activa con timestamp de inicio)
+**Entradas:** IDLE (scheduler_node dispara, poll cada 30 s)  
+**Salidas:** → SEARCHING (inmediato), → ALERT (timeout >60 min sin entrega)  
+**Nodos:** `scheduler_node` (`/scheduler/reminder`), `medical_db.get_proxima_dosis()`, `state_machine_node`
 
 ---
 
-#### Estado 13: SUCCESS
+#### SUCCESS — pendiente
 
-**Descripción:** Confirmación visual de tarea completada. Estado breve (~3 s) con animación de celebración antes de volver a reposo o dashboard. Sin este estado el usuario no tiene feedback claro de que la tarea terminó correctamente.
+**Concepto:** Confirmación visual de tarea completada. Sin este estado el usuario no sabe si terminó bien.
 
-| Elemento | Detalle |
-|----------|---------|
-| **Visual cara** | Ojos → medias lunas felices / checkmark SVG animado (trazo que se dibuja en 0.6 s) / `"[Tarea] completada ✓"` / fade-out suave hacia IDLE |
-| **Duración** | 3 s fijo |
+**Visual:** Ojos → medias lunas felices. Checkmark SVG animado (trazo que se dibuja en 600 ms). `"[Tarea] completada"`. Fade-out suave hacia IDLE. Duración 3 s fijo.
 
-**Entradas:**
-- `DISPENSING` → load cell confirma dispensación correcta
-- `MEASURING` → todos los valores registrados sin errores en BD
-
-**Salidas:**
-- → `IDLE`: timer 3 s completado (sin misión adicional pendiente)
-- → `DASHBOARD`: usuario toca el trackpad para ver resultados detallados
-- → `SPEAKING`: follow-up verbal `"Tus valores están bien"` o `"Medicación entregada"`
-
-**Nodos ROS2 / Sistemas:**
-- `medical_db` — confirmación de escritura en BD
-- `scheduler_node` — marcar tarea como completada, calcular próxima dosis
+**Entradas:** DISPENSING (load cell OK), MEASURING (valores registrados)  
+**Salidas:** → IDLE (timer 3 s), → DASHBOARD (trackpad), → SPEAKING (follow-up verbal)  
+**Nodos:** `medical_db` (confirmación escritura), `scheduler_node` (marcar completado)
 
 ---
 
 ### Grupo D — Pantallas Complejas y Alertas
 
-#### Estado 14: DASHBOARD
+#### DASHBOARD — pendiente
 
-**Descripción:** Única pantalla sin cara Baymax dominante. Panel de datos completo del paciente. La cara aparece en miniatura en la esquina superior como avatar de estado. Timeout agresivo por privacidad: si no hay persona presente, vuelve a IDLE.
+**Concepto:** Única pantalla sin cara Baymax dominante. Panel de datos completo.
 
-| Elemento | Detalle |
-|----------|---------|
-| **Layout** | Cards de datos: últimos signos vitales / próxima dosis con tiempo restante / historial de dispensaciones / mini-cara Baymax esquina sup-izquierda |
-| **Controles** | 3 botones grandes táctiles (optimizados para trackpad): `"Medir ahora"` / `"Ver historial completo"` / `"Volver"` |
-| **Fuente de datos** | `medical_db` vía REST endpoints FastAPI — no datos hardcodeados |
-| **Privacidad** | Timeout 60 s sin interacción → IDLE / `/ultrasonic/front` sin persona 10 s → IDLE |
+**Visual:** Cards: últimos signos vitales, próxima dosis con tiempo restante, historial de dispensaciones. Mini-cara Baymax en esquina superior izquierda como avatar de estado. 3 botones táctiles optimizados para trackpad (min-height 64 px): "Medir ahora", "Ver historial", "Volver".
 
-**Entradas:**
-- `THINKING` / `SPEAKING` → intent = ver panel detectado
-- Botón físico trackpad en cualquier estado
-- `SUCCESS` → usuario quiere ver resultados detallados
+**Privacidad:** Timeout 60 s sin interacción → IDLE. `/ultrasonic/front` sin persona 10 s → IDLE. Los dos corren en paralelo.
 
-**Salidas:**
-- → `IDLE`: timeout 60 s sin interacción
-- → `IDLE`: `/ultrasonic/front` sin persona (timeout 10 s)
-- → `LISTENING`: wake word "Atlas" detectado (Porcupine sigue activo)
-- → `MEASURING`: botón `"Medir ahora"` presionado
-- → `DISPENSING`: botón `"Dar medicamento"` + confirmación verbal
-
-**Nodos ROS2 / Sistemas:**
-- `medical_db` (READ: `signos_vitales`, `horarios_medicacion`, `registros_dispensacion`)
-- FastAPI REST endpoints (`/api/patient/{id}/vitals`, `/api/patient/{id}/medications`)
-- `scheduler_node` (próximas dosis con tiempo relativo)
-- `/ultrasonic/front` (detección de presencia para timeout de privacidad)
+**Entradas:** THINKING/SPEAKING (intent = ver panel), trackpad en cualquier estado, SUCCESS  
+**Salidas:** → IDLE, → LISTENING (wake word), → MEASURING (botón), → DISPENSING (botón + voz)  
+**Nodos:** `medical_db` (REST), `scheduler_node` (próximas dosis), `/ultrasonic/front`
 
 ---
 
-#### Estado 15: ALERT
+#### ALERT — pendiente
 
-**Descripción:** Alerta médica o de emergencia. Dos severidades implementadas como variantes del mismo estado: `VITALS` (valores anómalos de sensores) y `EMERGENCY` (botón físico GPIO PA0 del STM32). Countdown visible antes de notificar al contacto de emergencia.
+**Concepto:** Alerta médica o emergencia. Dos severidades con el mismo estado.
 
-| Elemento | Detalle |
-|----------|---------|
-| **Visual — VITALS** | Fondo rojo pulsante / ojos rojos en modo alarma / `"SpO₂ bajo: 91%"` en texto grande / countdown `"Notificando en 10 s"` / botón grande `"Cancelar — estoy bien"` |
-| **Visual — EMERGENCY** | Ídem pero con `"EMERGENCIA"` y countdown reducido a 5 s / sin posibilidad de cancelar por voz |
-| **Countdown** | VITALS: 10 s / EMERGENCY: 5 s — configurable en `settings.py` |
+**Visual:** Tinte rojo muy sutil sobre el fondo blanco (pulsante, no agresivo). Ojos rojos. Texto grande según tipo: `"SpO₂ bajo: 91%"` o `"EMERGENCIA"`. Countdown visible. Botón grande "Cancelar — estoy bien". VITALS: countdown 10 s, cancelable. EMERGENCY: countdown 5 s, no cancelable por voz.
 
-**Entradas:**
-- `MEASURING` → valor fuera de rango configurado (`/health/*`)
-- `REMINDER` → timeout crítico >60 min sin entrega de medicación
-- GPIO PA0 STM32 → botón físico de emergencia en la base del robot
-
-**Salidas:**
-- → `SPEAKING`: Atlas verbaliza la alerta en voz alta
-- → `IDLE`: alerta cancelada por usuario antes del countdown (`"Cancelar — estoy bien"`)
-- → `IDLE`: notificación Wi-Fi enviada, monitoreo continúa normalmente
-
-**Nodos ROS2 / Sistemas:**
-- `atlas_ros2_node` (TTS alerta con prioridad máxima)
-- `/health/*` (topics de trigger con valores anómalos)
-- STM32 GPIO PA0 (botón físico) → micro-ROS → `/emergency_button`
-- Wi-Fi HTTP POST → contacto de emergencia configurado en `pacientes`
-- `medical_db.registrar_alerta()` — tipo + valores + timestamp + acción tomada
+**Entradas:** MEASURING (valor fuera de rango), REMINDER (>60 min), GPIO PA0 STM32  
+**Salidas:** → SPEAKING (Atlas verbaliza), → IDLE (cancelada o notificación enviada)  
+**Nodos:** `atlas_ros2_node` (TTS prioridad máxima), STM32 GPIO, Wi-Fi HTTP POST, `medical_db.registrar_alerta()`
 
 ---
 
-#### Estado 16: ERROR
+#### ERROR — pendiente
 
-**Descripción:** Error del sistema. No es urgencia médica. El robot intenta auto-recovery. Código de error legible en pantalla con acción sugerida al operador. No debe ser alarmante visualmente.
+**Concepto:** Error técnico del sistema. No es urgencia médica. Tono ámbar, no rojo.
 
-| Elemento | Detalle |
-|----------|---------|
-| **Visual cara** | Ojos en `"×"` color ámbar / código de error legible: p.ej. `ERR_DISPENSER_TIMEOUT` / `"Reiniciando módulo medication_node..."` / barra de progreso de recovery |
-| **Tono visual** | Ámbar — no rojo — para no alarmar al usuario. El error es técnico, no médico |
+**Visual:** Ojos en forma de `×` ámbar (dos lineas cruzadas, no elipses). Código de error legible: `ERR_DISPENSER_TIMEOUT`. `"Reiniciando módulo..."`. Barra de progreso de recovery. Deliberadamente no alarmante.
 
-**Entradas:**
-- `THINKING` → API timeout total sin fallback disponible (todos los niveles agotados)
-- `MOVING` → Nav2 path failure (path planner no encuentra ruta)
-- `DISPENSING` → fallo mecánico del carrusel o timeout
-- `MEASURING` → sensor MAX30102 no responde en 30 s
-
-**Salidas:**
-- → `IDLE`: error resuelto por auto-recovery exitoso
-- → `ALERT`: error crítico que compromete la seguridad del usuario
-
-**Nodos ROS2 / Sistemas:**
-- `state_machine_node` (recovery logic — reintentos por módulo)
-- `/rosout` (logging centralizado de errores)
-- `atlas_ros2_node` (TTS descripción del error si `severity = alta`)
+**Entradas:** THINKING (API timeout), MOVING (Nav2 falla), DISPENSING (fallo mecánico), MEASURING (sensor timeout 30 s)  
+**Salidas:** → IDLE (recovery exitoso), → ALERT (error crítico de seguridad)  
+**Nodos:** `state_machine_node` (recovery logic), `/rosout`
 
 ---
 
-## 5. MAPA DE TRANSICIONES
+## 6. MAPA DE TRANSICIONES
 
-### Tabla de Transiciones Completa
+### Tabla Completa
 
 | Estado origen | Condición / trigger | Estado destino |
 |---------------|---------------------|----------------|
-| IDLE | Wake word "Atlas" (Porcupine) | WAKE |
+| IDLE | Wake word "Atlas" | WAKE |
 | IDLE | `scheduler_node` dispara horario | REMINDER |
-| IDLE | Botón trackpad / comando voz | DASHBOARD |
+| IDLE | Botón trackpad / "ver panel" | DASHBOARD |
 | WAKE | Timer 1.2 s completado | LISTENING |
 | LISTENING | `SPEECH_END` (VAD) | THINKING |
-| LISTENING | `COMMAND_DETECTED` (Vosk local) | SPEAKING |
-| LISTENING | Timeout 10 s sin voz | IDLE |
+| LISTENING | `COMMAND_DETECTED` (Vosk) | SPEAKING |
+| LISTENING | Timeout 10 s | IDLE |
 | THINKING | Respuesta LLM lista | SPEAKING |
 | THINKING | Intent = dispensar + usuario confirmado | DISPENSING |
 | THINKING | Intent = medir | MEASURING |
 | THINKING | Intent = ver panel | DASHBOARD |
-| THINKING | Timeout 15 s / fallo API total | ERROR |
+| THINKING | Timeout 15 s / fallo API | ERROR |
 | SPEAKING | Terminó con pregunta abierta | LISTENING |
 | SPEAKING | Monólogo terminado | IDLE |
-| SPEAKING | Instrucción dispensar confirmada | DISPENSING |
-| SPEAKING | Instrucción "apoya el dedo" dada | MEASURING |
-| MOVING | Llegó sin usuario / path OK | SEARCHING |
+| SPEAKING | Confirmación dispensar | DISPENSING |
+| SPEAKING | Instrucción "apoya el dedo" | MEASURING |
+| MOVING | Llegó sin usuario | SEARCHING |
 | MOVING | Persona detectada en trayecto | APPROACHING |
 | MOVING | Llegó a base sin misión | IDLE |
 | MOVING | Nav2 falla | ERROR |
 | SEARCHING | `/person/detected = true` | APPROACHING |
 | SEARCHING | Timeout 120 s | IDLE |
-| SEARCHING | Timeout crítico REMINDER >60 min | ALERT |
-| APPROACHING | `/patient/identified` ≥ umbral | GREETING |
-| APPROACHING | En rango, no reconoció | SPEAKING |
-| APPROACHING | Persona perdida de vista 8 s | SEARCHING |
+| SEARCHING | REMINDER crítico >60 min | ALERT |
+| APPROACHING | `setConfidence(>=0.75)` | GREETING |
+| APPROACHING | `rejectApproach()` / timeout 8 s | SEARCHING |
 | GREETING | REMINDER activo para usuario | DISPENSING |
-| GREETING | Medición urgente programada | MEASURING |
+| GREETING | Medición programada urgente | MEASURING |
 | GREETING | Sin misión pendiente | SPEAKING |
 | DISPENSING | Load cell confirma dispensación | SUCCESS |
 | DISPENSING | Fallo mecánico / timeout | ERROR |
@@ -653,7 +469,7 @@ El HMI tiene **16 estados**, cada uno con visual específico, entradas, salidas 
 | SUCCESS | Usuario toca trackpad | DASHBOARD |
 | SUCCESS | Follow-up verbal necesario | SPEAKING |
 | DASHBOARD | Timeout 60 s sin interacción | IDLE |
-| DASHBOARD | Sin persona en ultrasónico 10 s | IDLE |
+| DASHBOARD | `/ultrasonic/front` sin persona 10 s | IDLE |
 | DASHBOARD | Wake word "Atlas" | LISTENING |
 | DASHBOARD | Botón "Medir ahora" | MEASURING |
 | ALERT | Cancelada antes del countdown | IDLE |
@@ -661,984 +477,311 @@ El HMI tiene **16 estados**, cada uno con visual específico, entradas, salidas 
 | ERROR | Auto-recovery exitoso | IDLE |
 | ERROR | Error crítico de seguridad | ALERT |
 
-### Reglas Generales de Transición
+### Reglas Globales de Transición
 
 ```
-1. Wake word "Atlas" tiene prioridad global — activa WAKE desde cualquier estado
-   excepto: DISPENSING (🔒), ALERT (la alerta no se interrumpe por voz)
+1. Wake word "Atlas" tiene prioridad global desde cualquier estado
+   EXCEPTO: DISPENSING (bloqueado) y ALERT (no se interrumpe por voz)
 
-2. GPIO PA0 (botón emergencia) tiene máxima prioridad global — activa ALERT
-   desde cualquier estado, incluyendo DISPENSING y MEASURING
+2. GPIO PA0 (boton emergencia STM32) tiene maxima prioridad absoluta
+   -> Activa ALERT desde CUALQUIER estado, incluyendo DISPENSING y MEASURING
 
-3. Los estados 🔒 (DISPENSING) bloquean /cmd_vel — Nav2 no puede moverlo
+3. DISPENSING bloquea /cmd_vel -- Nav2 no puede mover el robot
 
-4. Porcupine corre 24/7 en background, independientemente del estado HMI activo
+4. Porcupine corre 24/7 en background, independientemente del estado activo
 
-5. scheduler_node hace poll cada 30 s — solo dispara REMINDER desde IDLE
-   (no interrumpe conversaciones activas o tareas médicas en curso)
+5. scheduler_node hace poll cada 30 s -- solo dispara REMINDER desde IDLE
+   (nunca interrumpe conversaciones activas o tareas medicas en curso)
 ```
 
 ---
 
-## 6. FLUJOS PRINCIPALES DE USO
+## 7. FLUJOS PRINCIPALES DE USO
 
 ### Flujo 1 — Conversación Pura (más frecuente)
-
 ```
-IDLE → WAKE → LISTENING → THINKING → SPEAKING → IDLE
+IDLE -> WAKE -> LISTENING -> THINKING -> SPEAKING -> IDLE
 ```
-
-Subsistemas involucrados: `atlas_ros2_node` + `medical_db`. Sin hardware de robot activo.  
-Latencia total: ~1.6–2.5 s desde fin del habla hasta respuesta audible.
-
----
+Latencia total: ~1.6–2.5 s. Solo `atlas_ros2_node` + `medical_db`.
 
 ### Flujo 2 — Misión de Medicación (flujo más completo)
-
 ```
-IDLE → REMINDER → SEARCHING → APPROACHING → GREETING → DISPENSING → SUCCESS → IDLE
+IDLE -> REMINDER -> SEARCHING -> APPROACHING -> GREETING -> DISPENSING -> SUCCESS -> IDLE
 ```
+Toca todos los subsistemas: scheduler → Nav2 → Kinect → visión → dispensador → BD.
 
-Subsistemas involucrados: `scheduler_node` → Nav2 → `person_detector_node` → `face_recognition_node` → `medication_node` → HX711 → `medical_db`.  
-Toca absolutamente todos los subsistemas del robot. Es el flujo de validación integral del sistema.
-
----
-
-### Flujo 3 — Medición de Signos Vitales por Comando
-
+### Flujo 3 — Signos Vitales por Comando
 ```
-IDLE → WAKE → LISTENING → THINKING → SPEAKING → MEASURING → SUCCESS → IDLE
-                                                                  ↓
-                                                               ALERT (si valores anómalos)
+IDLE -> WAKE -> LISTENING -> THINKING -> SPEAKING -> MEASURING -> SUCCESS -> IDLE
+                                                                       |
+                                                              ALERT (valores anomalos)
 ```
 
-Subsistemas involucrados: `atlas_ros2_node` → `vital_signs_node` (ESP32 Médica) → `medical_db`.  
-Bifurcación crítica en MEASURING: valores normales → SUCCESS; cualquier valor fuera de rango → ALERT.
-
----
-
-### Flujo 4 — Dashboard con Cierre Automático por Privacidad
-
+### Flujo 4 — Dashboard con Cierre por Privacidad
 ```
-(cualquier estado) → DASHBOARD → IDLE
-                         ↓
-                    LISTENING (si wake word activo)
-                         ↓
-                    MEASURING (botón "Medir ahora")
+(cualquier estado) -> DASHBOARD -> IDLE
 ```
-
-El DASHBOARD tiene dos mecanismos de cierre automático independientes que corren en paralelo:
-1. **Timeout de interacción:** 60 s sin que el usuario toque el trackpad → IDLE
-2. **Ausencia de persona:** `/ultrasonic/front` sin detección durante 10 s → IDLE
-
-Ambos protegen la privacidad de los datos de salud si el usuario se aleja de la pantalla.
-
----
+Dos mecanismos independientes en paralelo: timeout 60 s de inactividad + ausencia de persona (ultrasonido 10 s).
 
 ### Flujo 5 — Emergencia por Botón Físico
-
 ```
-(cualquier estado) → ALERT[EMERGENCY] → SPEAKING → IDLE
+(cualquier estado) -> ALERT[EMERGENCY] -> SPEAKING -> IDLE
 ```
-
-GPIO PA0 del STM32 tiene **máxima prioridad global** — interrumpe cualquier estado activo,
-incluyendo DISPENSING y MEASURING. Countdown reducido a 5 s. No cancelable por voz.
+GPIO PA0 STM32. Countdown 5 s. No cancelable por voz. Máxima prioridad global.
 
 ---
 
-## 7. DISEÑO VISUAL — CARA BAYMAX
+## 8. ESPECIFICACIONES TÉCNICAS — baymax_face.js
 
-### Filosofía Visual
+### Estado: v4.0 — 8/16 estados implementados
 
-La cara de Baymax tiene cuatro reglas inquebrantables:
+Archivo: `hmi/static/baymax_face.js`  
+Expone: `window.BaymaxFace`
 
-1. **Fondo siempre negro `#000000`** — no cambia en ningún estado. El negro total hace que los ojos "floten" en la pantalla y es no intrusivo en entornos nocturnos domésticos.
-2. **Sin texto en la cara durante estados conversacionales** — los ojos comunican todo. El texto solo aparece en estados de tarea (DISPENSING, MEASURING) o como indicador muy sutil en LISTENING.
-3. **Los ojos son el único elemento que cambia color** — nada más. Consistencia visual extrema.
-4. **Todas las transiciones de estado duran exactamente 300 ms** — `easeInOutCubic`. Sin excepciones. Esto hace que el robot se sienta "vivo" sin ser errático.
+### API Pública Completa
+
+```javascript
+// Instanciar y arrancar
+const face = new BaymaxFace(document.getElementById('canvas'));
+face.start();
+face.stop();
+
+// Control de estado FSM
+face.setState('LISTENING', params)   // params: { patient_name, medication, dose, severity }
+face.setAudioLevel(0.742)            // nivel TTS (0–1), desde /ws/audio source='tts'
+face.setMicLevel(0.35)               // nivel mic (0–1), desde /ws/audio source='mic'
+
+// APPROACHING — API de reconocimiento facial
+face.setConfidence(0.85)             // umbral 0.75 -> fase 'recognized' (nods)
+face.rejectApproach()                // fase 'rejected' (shake)
+
+// SEARCHING — modo misión activa
+face.setReminderActive(true)         // ojos -> teal progresivamente
+```
+
+### Sistema de Springs
+
+`_updateSpring(spring, target, config, dtS)` — spring-damper genérico reutilizable en toda la clase.
+
+| Spring | Uso | k | d | Comportamiento |
+|--------|-----|---|---|----------------|
+| `_eyeScaleL/R` | Ojos saltones WAKE | 180 | 14 | Underdamped, overshoot ~12% |
+| `_jiggleL/R` | Jiggle vertical SPEAKING | 100 | 12 | Decae en ~400 ms |
+| `_nodSpring` | Nod "sí" APPROACHING | 140 | 9 | 2–3 oscilaciones naturales |
+| `_shakeSpring` | Shake "no" APPROACHING | 160 | 8 | 3–4 oscilaciones naturales |
+
+### Escala Proporcional
+
+Todas las coordenadas se definen a `BASE_W = 1366 px`. Factor `S = canvas.width / 1366`. Método `_s(v)` aplica el factor a cualquier valor. Soporta cualquier resolución sin refactorizar.
+
+### Teclado de Desarrollo (oculto en producción)
+
+| Tecla | Acción |
+|-------|--------|
+| `1–5` | IDLE, WAKE, LISTENING, THINKING, SPEAKING |
+| `6–8` | MOVING, SEARCHING, APPROACHING |
+| `A` | Toggle simulación de audio (en SPEAKING) |
+| `D` | Toggle debug overlay |
+| `R` | Toggle REMINDER teal (en SEARCHING) |
+| `C` | Ciclar fases seeking → recognized → rejected (en APPROACHING) |
 
 ---
 
-### Sistema de Coordenadas Canvas
+## 9. INTEGRACIÓN CON ROS2 Y BACKEND
 
-```
-Resolución objetivo: 1366 × 768 px (pantalla Samsung laptop en kiosko)
-Centro canvas: (683, 384)
-
-Ojo izquierdo:
-  Centro:    (503, 350)
-  Ancho:     180 px  (eje X)
-  Alto:      90 px   (eje Y)
-  rx normal: 90      ry normal: 45
-
-Ojo derecho:
-  Centro:    (863, 350)
-  Ancho:     180 px
-  Alto:      90 px
-
-Distancia entre centros: 360 px
-Zona boca (SPEAKING):    y = 480–530, centrado en x = 683, ancho = 400 px
-Zona texto sutil:        y = 680–710, centrado en x = 683
-```
-
-> **Nota de escalado:** Todos los valores están normalizados para 1366×768.
-> En `baymax_face.js`, usar `canvas.width / 1366` como factor de escala para soportar
-> otras resoluciones sin refactorizar coordenadas.
-
----
-
-### Paleta de Color por Estado
-
-| Estado | Color ojos | Hex | Notas |
-|--------|-----------|-----|-------|
-| IDLE | Blanco | `#FFFFFF` | Brillo base |
-| WAKE | Blanco → destello | `#FFFFFF` → `#FFFFEE` | Flash en transición |
-| LISTENING | Azul | `#378ADD` | Mismo azul que paleta ROS2 |
-| THINKING | Ámbar | `#BA7517` | "Luz cálida" de concentración |
-| SPEAKING | Blanco brillante | `#FFFFFF` + glow | Ligeramente mayor que IDLE |
-| MOVING | Blanco | `#FFFFFF` | Pupila desplazada hacia adelante |
-| SEARCHING | Blanco | `#FFFFFF` | Ojos en movimiento lateral |
-| APPROACHING | Blanco | `#FFFFFF` | Ojos agrandados |
-| GREETING | Verde → blanco | `#1D9E75` → `#FFFFFF` | Flash verde, luego medias lunas |
-| DISPENSING | Ámbar concentrado | `#BA7517` | Igual que THINKING pero ojos normales |
-| MEASURING | Azul sereno | `#378ADD` | Igual que LISTENING pero sin halo |
-| REMINDER | Teal | `#1D9E75` | Misión activa |
-| SUCCESS | Blanco (medias lunas) | `#FFFFFF` | Forma cambia a media luna |
-| DASHBOARD | N/A | — | Mini-cara — ver sección DASHBOARD |
-| ALERT | Rojo | `#E24B4A` | Único uso del rojo en la cara |
-| ERROR | Ámbar + forma × | `#BA7517` | Forma cambia a × |
-
----
-
-### Especificaciones de Animación por Estado
-
-#### IDLE — Parpadeo y Respiración
-
-```javascript
-// Parpadeo: aleatorio cada 3000–6000 ms
-// Duración del parpadeo: 150 ms cerrar + 150 ms abrir
-// Implementación: escalar ry de 45 → 2 → 45
-
-blinkAnimation = {
-  duration: 300,          // ms total
-  closeTime: 150,         // ms hasta ry=2
-  easing: 'easeInOutCubic',
-  interval: random(3000, 6000)
-}
-
-// Micro-respiración: loop continuo
-// Toda la cara (ambos ojos) escala entre 1.0 y 1.02
-breathAnimation = {
-  scale: { min: 1.0, max: 1.02 },
-  duration: 4000,          // ms por ciclo completo
-  easing: 'easeInOutSine'  // suave, orgánico
-}
-```
-
-#### WAKE — Apertura con Bloom
-
-```javascript
-// Fase 1 (0–400 ms): ojos abren desde ry=2 a ry=55 (overshoot)
-// Fase 2 (400–600 ms): retroceden de ry=55 a ry=45 (settle)
-// Simultáneo: ondas de sonar — 3 anillos expansivos desde el centro
-// Simultáneo: flash blanco — opacidad overlay 0→0.4→0 en 300 ms
-
-wakeAnimation = {
-  eyeOpen: { from: 2, overshoot: 55, settle: 45, duration: 600 },
-  sonarRings: { count: 3, delay: 100, maxRadius: 300, duration: 800 },
-  flash: { peakOpacity: 0.4, duration: 300 }
-}
-```
-
-#### LISTENING — Halo Reactivo al Micrófono
-
-```javascript
-// El halo es un anillo alrededor de cada ojo
-// Su radio exterior varía con la amplitud del micrófono (0.0–1.0 normalizada)
-// Radio base del halo: eyeRy + 15 px
-// Radio máximo del halo: eyeRy + 45 px
-// Suavizado: exponential moving average α=0.3 para evitar jitter
-
-haloRadius = baseRadius + (amplitude * 30)  // px adicionales
-haloOpacity = 0.3 + (amplitude * 0.5)       // 0.3 en silencio → 0.8 con voz fuerte
-haloColor = '#378ADD'
-haloLineWidth = 2  // px
-```
-
-#### THINKING — Puntos Orbitantes
-
-```javascript
-// 3 puntos orbitan alrededor del centro de la cara (683, 384)
-// Radio de órbita: 220 px desde el centro
-// Velocidad angular: 0.8 rad/s (una vuelta cada ~7.8 s)
-// Los puntos están separados 120° entre sí
-// Tamaño de cada punto: radio 8 px
-// Opacidad: el punto "líder" 1.0, los otros 0.6 y 0.3
-
-// Desplazamiento de mirada: ambos ojos se mueven
-// dx = -20 px (izquierda), dy = -15 px (arriba)
-// Transición: 300 ms easeInOutCubic al entrar/salir del estado
-
-thinkingDots = {
-  count: 3,
-  orbitRadius: 220,
-  angularVelocity: 0.8,    // rad/s
-  dotRadius: 8,
-  opacities: [1.0, 0.6, 0.3]
-}
-gazeOffset = { dx: -20, dy: -15 }
-```
-
-#### SPEAKING — Onda de Boca Sincronizada
-
-```javascript
-// La boca es una onda senoidal dibujada en Canvas con lineTo
-// Parámetros base (silencio):
-//   amplitude: 0 px  →  línea recta horizontal
-// Parámetros con voz:
-//   amplitude: audioLevel * 60 px  (máximo 60 px)
-//   frequency: 2 ciclos en el ancho total de la boca (400 px)
-//   phase: avanza a 3 rad/s (movimiento de onda)
-
-// Suavizado: EMA α=0.4 sobre audioLevel para transiciones suaves
-// Color línea: #FFFFFF, lineWidth: 4 px, lineCap: 'round'
-
-mouthWave = {
-  x: 483, y: 505,          // esquina izquierda
-  width: 400,              // px
-  baseAmplitude: 0,
-  maxAmplitude: 60,        // px
-  frequency: 2,            // ciclos en el ancho
-  phaseSpeed: 3.0,         // rad/s
-  smoothingAlpha: 0.4
-}
-```
-
-#### GREETING / SUCCESS — Medias Lunas
-
-```javascript
-// Los ojos elipse se transforman en arcos (medias lunas)
-// Implementación: cambiar de drawEllipse() a drawArc()
-// Arco: desde Math.PI a 0 (semicírculo inferior = sonrisa)
-// La transición morph dura 300 ms interpolando entre las dos formas
-
-// Para SUCCESS además: checkmark SVG animado
-// El checkmark se "dibuja" incrementalmente en 600 ms
-// Posición: centro de pantalla, entre los ojos y la zona boca
-// Tamaño: 80×60 px
-// Color: #1D9E75 (verde)
-// StrokeWidth: 5 px, lineCap: 'round'
-```
-
-#### SEARCHING — Ojos en Movimiento Lateral
-
-```javascript
-// Ambos ojos se desplazan en X en loop sinusoidal
-// Rango de desplazamiento: ±40 px desde posición base
-// Período: 3 s por ciclo completo (ida y vuelta)
-// Easing: easeInOutSine (movimiento orgánico, no mecánico)
-
-// Overlay: línea de scan horizontal
-// y varía de 200 a 560 px (zona facial) a 0.5 px/ms
-// Color: #FFFFFF, opacidad: 0.15, lineWidth: 1.5 px
-
-searchGaze = {
-  amplitude: 40,           // px desplazamiento máximo
-  period: 3000,            // ms por ciclo
-  easing: 'easeInOutSine'
-}
-```
-
-#### ALERT — Ojos Parpadeantes Rojos
-
-```javascript
-// Los ojos cambian a rojo #E24B4A
-// Parpadeo de alerta: rápido e involuntario
-//   encendido 400 ms → apagado 200 ms → encendido 400 ms → ...
-// El fondo de la pantalla cambia a rojo muy oscuro con pulso
-//   background oscila entre #0D0000 y #1A0000 a 1 Hz
-
-alertBlink = {
-  onDuration: 400,         // ms encendido
-  offDuration: 200,        // ms apagado
-  eyeColor: '#E24B4A'
-}
-backgroundPulse = {
-  min: '#000000',
-  max: '#1A0000',
-  frequency: 1.0           // Hz
-}
-```
-
-#### ERROR — Ojos en ×
-
-```javascript
-// Los ojos elipse se reemplazan por dos líneas cruzadas (×)
-// Cada × se dibuja con dos lineTo de 60 px de largo, centradas en la posición del ojo
-// Color: #BA7517 (ámbar — no rojo para no alarmar)
-// StrokeWidth: 6 px, lineCap: 'round'
-// Los × tienen una animación de "aparición" en 200 ms (escala 0 → 1)
-```
-
----
-
-### Estructura del Archivo `baymax_face.js`
-
-```javascript
-// baymax_face.js — estructura de clases
-
-class BaymaxFace {
-  constructor(canvas) {
-    this.canvas = canvas;
-    this.ctx = canvas.getContext('2d');
-    this.state = 'IDLE';
-    this.audioLevel = 0.0;      // 0.0–1.0, actualizado por WebSocket
-    this.micLevel  = 0.0;       // 0.0–1.0, amplitud del micrófono
-    this.scale = canvas.width / 1366;
-    this.eyes = {
-      left:  { x: 503, y: 350, rx: 90, ry: 45 },
-      right: { x: 863, y: 350, rx: 90, ry: 45 }
-    };
-    this.animationFrame = null;
-    this.stateParams = {};       // parámetros interpolados del estado actual
-  }
-
-  setState(newState, params = {}) {
-    // Transición de 300 ms easeInOutCubic entre estado anterior y nuevo
-    this.previousState = this.state;
-    this.state = newState;
-    this.transitionProgress = 0;
-    this.stateParams = params;
-  }
-
-  setAudioLevel(level) {
-    // EMA suavizado — llamado desde WebSocket /ws/audio
-    this.audioLevel = this.audioLevel * 0.6 + level * 0.4;
-  }
-
-  setMicLevel(level) {
-    this.micLevel = this.micLevel * 0.7 + level * 0.3;
-  }
-
-  draw(timestamp) {
-    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    this.ctx.fillStyle = '#000000';
-    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-    this._applyScale();
-    this._drawBackground();  // estado ALERT modifica el fondo
-    this._drawEyes();
-    this._drawMouth();       // solo en SPEAKING
-    this._drawOverlay();     // elementos específicos por estado
-    this._drawSubtleText();  // solo en LISTENING
-    this.animationFrame = requestAnimationFrame((ts) => this.draw(ts));
-  }
-
-  // Métodos internos: _drawEyes(), _drawMouth(), _drawHalo(),
-  // _drawThinkingDots(), _drawScanLine(), _drawCheckmark(),
-  // _drawSonarRings(), _easeInOutCubic(t), _lerp(a, b, t)
-}
-
-// Inicialización en index.html
-const face = new BaymaxFace(document.getElementById('baymax-canvas'));
-face.draw(0);
-
-// Recibir cambios de estado desde el backend
-stateSocket.onmessage = (e) => {
-  const { state, params } = JSON.parse(e.data);
-  face.setState(state, params);
-};
-
-// Recibir nivel de audio para la boca
-audioSocket.onmessage = (e) => {
-  const { level, source } = JSON.parse(e.data);
-  if (source === 'tts')  face.setAudioLevel(level);
-  if (source === 'mic')  face.setMicLevel(level);
-};
-```
-
----
-
-## 8. INTEGRACIÓN CON ROS2 Y SISTEMAS BACKEND
-
-### Arquitectura FastAPI ↔ ROS2
-
-```
-ROS2 Graph
-  /atlas/detected_command  →┐
-  /atlas/listening         →│
-  /robot/speak             →│  ros2_bridge.py
-  /health/bpm              →│  (hilo rclpy separado,
-  /health/spo2             →│   thread-safe con asyncio)
-  /health/temperature      →│
-  /patient/identified      →│
-  /ultrasonic/front        →┘
-        ↕
-  FastAPI (uvicorn, asyncio event loop)
-        ↕
-  WebSocket /ws/state   → state_machine.js → BaymaxFace.setState()
-  WebSocket /ws/audio   → baymax_face.js   → BaymaxFace.setAudioLevel()
-  REST GET /api/patient → dashboard.js     → DOM update
-```
-
-### Archivo `ros2_bridge.py`
-
-```python
-# ros2_bridge.py — suscriptor/publicador ROS2 en hilo separado
-# Se comunica con FastAPI mediante asyncio.Queue thread-safe
-
-import rclpy
-from rclpy.node import Node
-from std_msgs.msg import String, Bool, Int32, Float32
-import asyncio
-import threading
-
-class HMIBridgeNode(Node):
-    def __init__(self, state_queue: asyncio.Queue, audio_queue: asyncio.Queue):
-        super().__init__('hmi_bridge_node')
-        self.state_queue = state_queue
-        self.audio_queue = audio_queue
-
-        # Suscripciones
-        self.create_subscription(String, '/atlas/detected_command',
-                                 self._on_command, 10)
-        self.create_subscription(Bool, '/atlas/listening',
-                                 self._on_listening, 10)
-        self.create_subscription(String, '/robot/speak',
-                                 self._on_speak, 10)
-        self.create_subscription(Int32, '/health/bpm',
-                                 self._on_bpm, 10)
-        self.create_subscription(Int32, '/health/spo2',
-                                 self._on_spo2, 10)
-        self.create_subscription(Float32, '/health/temperature',
-                                 self._on_temp, 10)
-        self.create_subscription(String, '/patient/identified',
-                                 self._on_patient, 10)
-        self.create_subscription(String, '/hmi/set_state',
-                                 self._on_set_state, 10)
-
-        # Publicaciones
-        self.hmi_action_pub = self.create_publisher(String, '/hmi/action', 10)
-
-    def _push_state(self, state: str, params: dict = {}):
-        """Thread-safe: empuja un cambio de estado al event loop de FastAPI."""
-        import json
-        asyncio.run_coroutine_threadsafe(
-            self.state_queue.put(json.dumps({'state': state, 'params': params})),
-            self._loop
-        )
-
-    def _on_set_state(self, msg: String):
-        self._push_state(msg.data)
-
-    def _on_listening(self, msg: Bool):
-        if msg.data:
-            self._push_state('LISTENING')
-
-    def _on_speak(self, msg: String):
-        self._push_state('SPEAKING', {'text': msg.data})
-
-    def _on_patient(self, msg: String):
-        self._push_state('GREETING', {'patient_id': msg.data})
-
-    def _on_bpm(self, msg: Int32):
-        asyncio.run_coroutine_threadsafe(
-            self.state_queue.put(
-                __import__('json').dumps({'type': 'health', 'bpm': msg.data})
-            ), self._loop
-        )
-
-    # _on_spo2, _on_temp: análogo a _on_bpm
-
-    def set_loop(self, loop: asyncio.AbstractEventLoop):
-        self._loop = loop
-
-
-def run_ros2_bridge(state_queue, audio_queue, loop):
-    """Lanzar en threading.Thread separado."""
-    rclpy.init()
-    node = HMIBridgeNode(state_queue, audio_queue)
-    node.set_loop(loop)
-    rclpy.spin(node)
-    node.destroy_node()
-    rclpy.shutdown()
-```
-
-### Archivo `server.py` — FastAPI App
-
-```python
-# server.py — entrypoint FastAPI
-
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-import asyncio
-import threading
-import json
-
-from ros2_bridge import run_ros2_bridge
-from audio_level import AudioLevelStreamer
-from routers import dashboard
-
-app = FastAPI()
-app.include_router(dashboard.router, prefix='/api')
-app.mount('/static', StaticFiles(directory='static'), name='static')
-
-state_queue: asyncio.Queue = asyncio.Queue()
-audio_queue: asyncio.Queue = asyncio.Queue()
-
-@app.on_event('startup')
-async def startup():
-    loop = asyncio.get_event_loop()
-    # Hilo ROS2
-    threading.Thread(
-        target=run_ros2_bridge,
-        args=(state_queue, audio_queue, loop),
-        daemon=True
-    ).start()
-    # Hilo nivel de audio TTS
-    threading.Thread(
-        target=AudioLevelStreamer(audio_queue, loop).run,
-        daemon=True
-    ).start()
-
-@app.get('/')
-async def index():
-    return FileResponse('static/index.html')
-
-@app.websocket('/ws/state')
-async def ws_state(websocket: WebSocket):
-    await websocket.accept()
-    try:
-        while True:
-            msg = await state_queue.get()
-            await websocket.send_text(msg)
-    except WebSocketDisconnect:
-        pass
-
-@app.websocket('/ws/audio')
-async def ws_audio(websocket: WebSocket):
-    await websocket.accept()
-    try:
-        while True:
-            msg = await audio_queue.get()
-            await websocket.send_text(msg)
-    except WebSocketDisconnect:
-        pass
-```
-
-### Archivo `audio_level.py` — Stream de Amplitud
-
-```python
-# audio_level.py — captura RMS del buffer sounddevice y lo publica
-# Frecuencia de muestreo: 50 Hz (cada 20 ms)
-# Esto alimenta la animación de la boca en SPEAKING
-
-import sounddevice as sd
-import numpy as np
-import asyncio
-import json
-import time
-
-class AudioLevelStreamer:
-    """
-    Captura el nivel RMS del stream de audio de salida (TTS)
-    y lo empuja a audio_queue para el WebSocket /ws/audio.
-
-    Requiere que sounddevice esté usando el mismo device que Azure TTS.
-    El nivel se normaliza a 0.0–1.0 con clipping en el percentil 95.
-    """
-    SAMPLE_RATE = 16000
-    CHUNK_SIZE  = 320        # 20 ms a 16 kHz
-    MAX_RMS     = 3000.0     # valor RMS de referencia para normalización
-
-    def __init__(self, queue: asyncio.Queue, loop: asyncio.AbstractEventLoop):
-        self.queue = queue
-        self.loop  = loop
-
-    def run(self):
-        def callback(indata, frames, time_info, status):
-            rms = np.sqrt(np.mean(indata.astype(np.float32) ** 2))
-            level = min(rms / self.MAX_RMS, 1.0)
-            msg = json.dumps({'level': round(level, 3), 'source': 'tts'})
-            asyncio.run_coroutine_threadsafe(
-                self.queue.put(msg), self.loop
-            )
-
-        with sd.InputStream(
-            samplerate=self.SAMPLE_RATE,
-            channels=1,
-            dtype='int16',
-            blocksize=self.CHUNK_SIZE,
-            callback=callback
-        ):
-            while True:
-                time.sleep(0.1)
-```
-
-> **Nota:** `audio_level.py` captura el loopback del audio de salida, no el micrófono.
-> En Ubuntu 22.04 esto requiere configurar PulseAudio con un monitor source:
-> ```bash
-> pactl load-module module-loopback latency_msec=1
-> # O usar el monitor del sink por defecto como input device en sounddevice
-> ```
-
-### Archivo `routers/dashboard.py` — Endpoints REST
-
-```python
-# routers/dashboard.py
-
-from fastapi import APIRouter
-from ..medical_db import MedicalDB   # reutiliza el módulo existente de Atlas
-
-router = APIRouter()
-db = MedicalDB()
-
-@router.get('/patient/{patient_id}/summary')
-async def get_patient_summary(patient_id: int):
-    """Resumen completo para el dashboard — una sola llamada."""
-    return {
-        'patient':      db.get_paciente(patient_id),
-        'vitals':       db.get_ultimo_registro_signos(patient_id),
-        'next_dose':    db.get_proxima_dosis(patient_id),
-        'dispensations': db.get_historial_dispensacion(patient_id, limit=5)
-    }
-
-@router.get('/patient/{patient_id}/vitals')
-async def get_vitals(patient_id: int, limit: int = 10):
-    return db.get_historial_signos_vitales(patient_id, limit=limit)
-
-@router.get('/patient/{patient_id}/medications')
-async def get_medications(patient_id: int):
-    return db.get_medicamentos_activos(patient_id)
-```
-
-### Topics ROS2 del Módulo HMI
+### Topics del Módulo HMI
 
 | Topic | Tipo | Dirección | Descripción |
 |-------|------|-----------|-------------|
-| `/hmi/set_state` | `std_msgs/String` | → HMI | Fuerza cambio de estado desde `state_machine_node` |
-| `/hmi/action` | `std_msgs/String` | HMI → | Acción del usuario desde el dashboard (p.ej. `"measure_now"`) |
-| `/hmi/active` | `std_msgs/Bool` | → HMI | El HMI está corriendo y conectado |
-| `/atlas/listening` | `std_msgs/Bool` | → HMI | Atlas en escucha activa → LISTENING |
-| `/robot/speak` | `std_msgs/String` | → HMI | Texto que Atlas va a decir → SPEAKING |
-| `/patient/identified` | `std_msgs/String` | → HMI | ID del paciente reconocido → GREETING |
-| `/health/bpm` | `std_msgs/Int32` | → HMI | BPM en tiempo real durante MEASURING |
-| `/health/spo2` | `std_msgs/Int32` | → HMI | SpO₂ en tiempo real durante MEASURING |
-| `/health/temperature` | `std_msgs/Float32` | → HMI | Temperatura en tiempo real durante MEASURING |
-| `/scheduler/reminder` | `std_msgs/String` | → HMI | JSON con datos de la misión activa → REMINDER |
-| `/ultrasonic/front` | `std_msgs/Float32` | → HMI | Distancia frontal → timeout privacidad DASHBOARD |
+| `/hmi/set_state` | `std_msgs/String` | -> HMI | Fuerza cambio de estado desde `state_machine_node` |
+| `/hmi/action` | `std_msgs/String` | HMI -> | Acción del usuario desde dashboard |
+| `/atlas/listening` | `std_msgs/Bool` | -> HMI | -> LISTENING |
+| `/robot/speak` | `std_msgs/String` | -> HMI | -> SPEAKING |
+| `/patient/identified` | `std_msgs/String` | -> HMI | -> GREETING |
+| `/patient/confidence` | `std_msgs/Float32` | -> HMI | `setConfidence()` en APPROACHING |
+| `/health/bpm` | `std_msgs/Int32` | -> HMI | Valor en tiempo real durante MEASURING |
+| `/health/spo2` | `std_msgs/Int32` | -> HMI | Valor en tiempo real durante MEASURING |
+| `/health/temperature` | `std_msgs/Float32` | -> HMI | Valor en tiempo real durante MEASURING |
+| `/scheduler/reminder` | `std_msgs/String` | -> HMI | JSON payload -> REMINDER |
+| `/ultrasonic/front` | `std_msgs/Float32` | -> HMI | Timeout privacidad DASHBOARD |
 
-### FSM del Frontend (`state_machine.js`)
+### Estructura de Mensajes WebSocket
 
 ```javascript
-// /state_machine.js — espejo del state_machine_node en el frontend
-// Gestiona qué elementos del DOM son visibles en cada estado
-
-const STATE_CONFIG = {
-  IDLE:       { canvas: true,  dashboard: false, overlay: null         },
-  WAKE:       { canvas: true,  dashboard: false, overlay: null         },
-  LISTENING:  { canvas: true,  dashboard: false, overlay: 'listening'  },
-  THINKING:   { canvas: true,  dashboard: false, overlay: null         },
-  SPEAKING:   { canvas: true,  dashboard: false, overlay: null         },
-  MOVING:     { canvas: true,  dashboard: false, overlay: 'moving'     },
-  SEARCHING:  { canvas: true,  dashboard: false, overlay: 'searching'  },
-  APPROACHING:{ canvas: true,  dashboard: false, overlay: null         },
-  GREETING:   { canvas: true,  dashboard: false, overlay: 'greeting'   },
-  DISPENSING: { canvas: true,  dashboard: false, overlay: 'dispensing' },
-  MEASURING:  { canvas: true,  dashboard: false, overlay: 'measuring'  },
-  REMINDER:   { canvas: true,  dashboard: false, overlay: 'reminder'   },
-  SUCCESS:    { canvas: true,  dashboard: false, overlay: 'success'    },
-  DASHBOARD:  { canvas: false, dashboard: true,  overlay: null         },
-  ALERT:      { canvas: true,  dashboard: false, overlay: 'alert'      },
-  ERROR:      { canvas: true,  dashboard: false, overlay: 'error'      }
-};
-
-class StateMachine {
-  constructor(face) {
-    this.face = face;
-    this.current = 'IDLE';
-    this.socket = new WebSocket('ws://localhost:8000/ws/state');
-    this.socket.onmessage = (e) => this.transition(JSON.parse(e.data));
-  }
-
-  transition({ state, params }) {
-    if (state === this.current) return;
-    const config = STATE_CONFIG[state];
-    if (!config) return console.warn(`Estado desconocido: ${state}`);
-    this.current = state;
-    this.face.setState(state, params);
-    document.getElementById('baymax-canvas').style.display =
-      config.canvas ? 'block' : 'none';
-    document.getElementById('dashboard-panel').style.display =
-      config.dashboard ? 'flex' : 'none';
-    this._updateOverlay(config.overlay, params);
-  }
-
-  _updateOverlay(overlayId, params) {
-    document.querySelectorAll('.state-overlay').forEach(el => {
-      el.style.display = 'none';
-    });
-    if (overlayId) {
-      const el = document.getElementById(`overlay-${overlayId}`);
-      if (el) {
-        el.style.display = 'flex';
-        this._populateOverlay(overlayId, params);
-      }
-    }
-  }
-
-  _populateOverlay(id, params) {
-    // Inyecta datos dinámicos en cada overlay
-    // p.ej. overlay-dispensing muestra params.medication_name, params.dose
-    // overlay-greeting muestra params.patient_name
-    // overlay-reminder muestra params.medication_name con urgencia
+// /ws/state — FastAPI -> frontend
+{
+  "state": "SPEAKING",
+  "params": {
+    "patient_name": "Juan",        // para GREETING
+    "medication": "Metformina",    // para DISPENSING / REMINDER
+    "dose": 2,                     // para DISPENSING / REMINDER
+    "severity": "vitals"           // para ALERT: "vitals" | "emergency"
   }
 }
+
+// /ws/audio — FastAPI -> frontend (50 Hz / cada 20 ms)
+{
+  "level": 0.742,    // 0.0–1.0 normalizado, EMA aplicado en servidor
+  "source": "tts"    // "tts" = salida TTS | "mic" = entrada microfono
+}
+```
+
+### Nota Crítica: Sincronización de la Boca
+
+`audio_level.py` captura el RMS del buffer de `sounddevice` cada 20 ms y lo publica via WebSocket. En Ubuntu 22.04 requiere un monitor source de PulseAudio para capturar el loopback del TTS:
+
+```bash
+pactl list short sources | grep monitor
+# Resultado esperado: "alsa_output.pci-XXXX.analog-stereo.monitor"
+# Usar ese nombre como input device en sounddevice
 ```
 
 ---
 
-## 9. INTERACCIÓN FÍSICA — TRACKPAD
+## 10. INTERACCIÓN FÍSICA — TRACKPAD
 
-### Hardware
+**Hardware:** Samsung laptop, cable USB-A ruteado por interior del cuello del robot.
 
-- **Dispositivo:** Samsung laptop con trackpad integrado, cableado al Dell Inspiron por USB
-- **Montaje:** Pecho del robot — Linda/Sergio deben incluir recorte en el diseño CAD de la carcasa
-- **Cable:** USB-A a USB-A, ruteado por el interior del cuello del robot
-- **Modo de uso:** El Samsung opera como dispositivo de entrada externo únicamente (trackpad + teclado opcional durante desarrollo)
-
-### Comportamiento por Estado
-
-| Estado | Comportamiento del trackpad |
-|--------|-----------------------------|
-| IDLE | Cualquier toque → DASHBOARD |
+| Estado | Comportamiento |
+|--------|---------------|
+| IDLE | Cualquier toque -> DASHBOARD |
 | DASHBOARD | Navegación normal entre cards y botones |
-| LISTENING | Toque → cancela escucha → IDLE |
-| SPEAKING | Toque → interrumpe reproducción → IDLE |
-| DISPENSING 🔒 | **Deshabilitado** — toque ignorado |
-| MEASURING | Toque → cancela medición → IDLE |
-| ALERT | Solo el botón "Cancelar — estoy bien" es activo |
-| Resto de estados | Toque → DASHBOARD si hay usuario identificado, si no → IDLE |
+| LISTENING | Toque -> cancela -> IDLE |
+| SPEAKING | Toque -> interrumpe -> IDLE |
+| DISPENSING | **Deshabilitado** — toque ignorado |
+| MEASURING | Toque -> cancela -> IDLE |
+| ALERT | Solo botón "Cancelar — estoy bien" activo |
+| Resto | Toque -> DASHBOARD (si usuario identificado) o -> IDLE |
 
-### Botones del Dashboard
+### Triple-Lock para Dispensación desde Dashboard
 
-Los botones del dashboard están optimizados para uso con trackpad (no pantalla táctil):
-
-```css
-/* Tamaño mínimo para uso cómodo con trackpad */
-.dashboard-btn {
-  min-width: 200px;
-  min-height: 64px;
-  font-size: 18px;
-  border-radius: var(--border-radius-lg);
-  cursor: pointer;
-  /* Sin hover states complejos — el trackpad puede hacer hover accidental */
-}
+Previene dispensaciones accidentales por contacto involuntario:
 ```
+1. Click "Dar medicamento" -> confirmacion: "[Medicamento]?"
+2. Click "Si, dar"         -> Atlas pide confirmacion verbal
+3. Respuesta afirmativa    -> DISPENSING activado
+```
+
+### Botones del Dashboard (optimizados para trackpad)
 
 | Botón | Acción | Topic publicado |
 |-------|--------|-----------------|
-| `"Medir ahora"` | → MEASURING | `/hmi/action: "measure_now"` |
-| `"Ver historial"` | Expande panel de historial (in-page) | — |
-| `"Volver"` | → IDLE | `/hmi/action: "go_idle"` |
-| `"Dar medicamento"` | Solicita confirmación vocal → DISPENSING | `/hmi/action: "dispense_request"` |
-
-### Prevención de Activaciones Accidentales
-
-El botón `"Dar medicamento"` requiere confirmación de dos pasos antes de activar DISPENSING:
-
-```
-1. Click en botón → aparece confirmación: "¿Confirmar dispensación de [medicamento]?"
-                    Botones: "Sí, dar" / "Cancelar"
-2. Click en "Sí, dar" → Atlas pide confirmación verbal: "¿Confirmas que quieres [medicamento]?"
-3. Respuesta afirmativa por voz → DISPENSING activado
-```
-
-Este triple-lock (click → click → voz) previene dispensaciones accidentales por
-contacto involuntario con el trackpad.
+| "Medir ahora" | -> MEASURING | `/hmi/action: "measure_now"` |
+| "Ver historial" | Expande panel in-page | — |
+| "Volver" | -> IDLE | `/hmi/action: "go_idle"` |
+| "Dar medicamento" | Triple-lock -> DISPENSING | `/hmi/action: "dispense_request"` |
 
 ---
 
-## 10. ESTADO ACTUAL Y PENDIENTES
+## 11. ESTADO ACTUAL Y PENDIENTES
 
-> **Última actualización:** 2026-03-16
-
-### Resumen
+> **Última actualización:** 2026-03-17
 
 | Componente | Estado | Detalle |
 |------------|--------|---------|
-| Decisión tecnológica | ✅ Cerrada | FastAPI + Chromium kiosk — 2026-03-16 |
-| 16 estados definidos | ✅ Completo | Visual, entradas, salidas y nodos para cada estado |
-| Mapa de transiciones | ✅ Completo | Tabla completa + reglas generales |
-| Arquitectura FastAPI | ✅ Diseñada | `server.py`, `ros2_bridge.py`, `audio_level.py` definidos |
-| Especificaciones Canvas | ✅ Diseñadas | Coordenadas, colores, animaciones por estado |
-| `baymax_face.js` | ❌ Pendiente | Implementar clase `BaymaxFace` con todos los estados |
-| `state_machine.js` | ❌ Pendiente | Implementar FSM frontend + overlays |
-| `dashboard.js` | ❌ Pendiente | Panel de datos + actualización via REST |
-| `server.py` | ❌ Pendiente | FastAPI app completa con WebSockets |
-| `ros2_bridge.py` | ❌ Pendiente | Hilo rclpy + asyncio queues |
-| `audio_level.py` | ❌ Pendiente | Stream RMS sounddevice → WS |
-| `routers/dashboard.py` | ❌ Pendiente | Endpoints REST (reutiliza `medical_db.py`) |
-| `index.html` | ❌ Pendiente | Layout kiosk + Canvas + overlays + dashboard |
-| Configuración PulseAudio | ❌ Pendiente | Monitor source para loopback audio TTS |
-| Pruebas en Ubuntu 22.04 | ❌ Pendiente | Verificar RAM con todos los nodos activos |
-| Integración en `bringup.launch.py` | ❌ Pendiente | Launch del HMI como nodo ROS2 |
+| Decisión tecnológica | OK | FastAPI + Chromium kiosk — 2026-03-17 |
+| Filosofía visual | OK | Modo claro, fondo blanco, ojos negros |
+| 16 estados definidos | OK | Visual, entradas, salidas y nodos para cada estado |
+| Mapa de transiciones | OK | Tabla completa + reglas generales |
+| `baymax_face.js` IDLE | OK | Parpadeo + doble parpadeo + micro-drift + respiración |
+| `baymax_face.js` WAKE | OK | Pulso línea + ojos saltones + bloom + nod "¿Sí?" + anillos |
+| `baymax_face.js` LISTENING | OK | Azul + anillo reactivo + entry animation desde WAKE |
+| `baymax_face.js` THINKING | OK | Ámbar vivo + cabeceo + punto viajero |
+| `baymax_face.js` SPEAKING | OK | Onda de voz + jiggle en picos de audio |
+| `baymax_face.js` MOVING | OK | Bob 2 frecuencias + rotación — "chill" |
+| `baymax_face.js` SEARCHING | OK | Barrido + shimmer + teal REMINDER |
+| `baymax_face.js` APPROACHING | OK | Lean curioso + nod sí + shake no |
+| `baymax_face.js` GREETING | pendiente | Medias lunas + texto nombre |
+| `baymax_face.js` DISPENSING | pendiente | Ojos ámbar + overlay medicamento + progreso |
+| `baymax_face.js` MEASURING | pendiente | Heartbeat + valores en tiempo real + semáforo |
+| `baymax_face.js` REMINDER | pendiente | Banner persistente + urgencia progresiva |
+| `baymax_face.js` SUCCESS | pendiente | Medias lunas + checkmark animado |
+| `baymax_face.js` DASHBOARD | pendiente | Pantalla de datos completa |
+| `baymax_face.js` ALERT | pendiente | Tinte rojo + countdown |
+| `baymax_face.js` ERROR | pendiente | Ojos x ambar + codigo de error |
+| `server.py` | pendiente | FastAPI + WebSockets |
+| `ros2_bridge.py` | pendiente | hilo rclpy + asyncio queues |
+| `audio_level.py` | pendiente | Stream RMS sounddevice -> WS |
+| `routers/dashboard.py` | pendiente | REST endpoints BD |
+| `state_machine.js` | pendiente | FSM frontend + overlays |
+| `dashboard.js` | pendiente | Panel de datos |
+| `index.html` | pendiente | Layout kiosk completo |
+| PulseAudio loopback | pendiente | Monitor source para TTS |
+| Pruebas RAM simultáneas | pendiente | Con todos los nodos activos |
 
 ### Orden de Implementación Recomendado
 
 ```
-1. index.html skeleton + baymax_face.js (IDLE + SPEAKING)
-   → Validar cara y animación de boca en navegador standalone
+Etapa 1 — Independiente del hardware (hacer ahora):
+  1. baymax_face.js: 8 estados restantes (GREETING -> ERROR)
+  2. index.html skeleton + HUD de desarrollo
+  3. server.py + WebSocket /ws/state con mock (sin ROS2)
+  4. state_machine.js + overlays basicos
 
-2. server.py + WebSocket /ws/state mock
-   → Poder cambiar estado desde terminal sin ROS2
+Etapa 2 — Requiere Ubuntu con ROS2:
+  5. ros2_bridge.py — conectar con grafo ROS2 real
+  6. audio_level.py + calibracion PulseAudio
+  7. routers/dashboard.py + dashboard.js con BD real
 
-3. state_machine.js + overlays básicos
-   → Transiciones visuales funcionando
-
-4. ros2_bridge.py
-   → Conectar con ROS2 real (requiere robot armado para estados de movilidad)
-
-5. audio_level.py + WebSocket /ws/audio
-   → Sincronización de boca con TTS (el más complejo de calibrar)
-
-6. routers/dashboard.py + dashboard.js
-   → Panel de datos con BD real
-
-7. Todos los overlays de estado (DISPENSING, MEASURING, ALERT, etc.)
-   → Requiere hardware médico funcional para probar
-
-8. Integración launch + pruebas de RAM simultáneas
-   → Fase final, con robot físico armado
+Etapa 3 — Requiere robot fisico armado:
+  8. Overlays DISPENSING, MEASURING — requiere hardware medico
+  9. Integracion en bringup.launch.py
+  10. Pruebas de RAM con todos los nodos simultaneos
 ```
-
-### Dependencias Bloqueantes
-
-| Tarea HMI | Bloqueada por |
-|-----------|---------------|
-| Overlays MOVING, SEARCHING, APPROACHING | Nav2 funcionando (robot físico) |
-| Overlay DISPENSING | Firmware ESP32 Médica + dispensador físico |
-| Overlay MEASURING + valores en tiempo real | Firmware ESP32 Médica + MAX30102 calibrado |
-| `audio_level.py` calibración | Pruebas de audio TTS en Ubuntu 22.04 |
-| Prueba de RAM total | Robot físico con todos los nodos simultáneos |
-
-Los primeros 4 pasos de implementación (cara + servidor mock + FSM + bridge básico)
-son **completamente independientes del hardware** y pueden hacerse ahora.
 
 ---
 
-## 11. COMANDOS DE REFERENCIA RÁPIDA
-
-### Desarrollo
+## 12. COMANDOS DE REFERENCIA RÁPIDA
 
 ```bash
-# Lanzar servidor FastAPI en modo desarrollo (hot-reload)
-cd ~/Meadlease/atlas/hmi
+# Testear standalone (sin servidor, solo el canvas)
+# Abrir index_test.html en el navegador directamente con File://
+# Shortcuts: 1-8 estados, A audio sim, D debug, R reminder, C ciclar APPROACHING
+
+# Servidor FastAPI en desarrollo (cuando este implementado)
+cd ~/Meadlease/hmi
 uvicorn server:app --host 127.0.0.1 --port 8000 --reload
 
-# Abrir en navegador normal (durante desarrollo, sin kiosko)
-xdg-open http://localhost:8000
-
-# Cambiar estado manualmente para testear animaciones (sin ROS2)
-ros2 topic pub /hmi/set_state std_msgs/String "data: 'LISTENING'" --once
-ros2 topic pub /hmi/set_state std_msgs/String "data: 'SPEAKING'" --once
-ros2 topic pub /hmi/set_state std_msgs/String "data: 'ALERT'" --once
-
-# Simular nivel de audio para testear boca
-# (publicar al WS directamente desde Python en modo test)
-python3 -c "
-import asyncio, websockets, json, math, time
-async def test():
-    async with websockets.connect('ws://localhost:8000/ws/audio') as ws:
-        for i in range(100):
-            level = abs(math.sin(i * 0.3)) * 0.8
-            await ws.send(json.dumps({'level': round(level,3), 'source': 'tts'}))
-            await asyncio.sleep(0.05)
-asyncio.run(test())
-"
-```
-
-### Producción (Robot Físico)
-
-```bash
-# Lanzar Chromium en modo kiosko
+# Chromium modo kiosk (robot fisico)
 chromium-browser \
   --kiosk \
   --app=http://localhost:8000 \
   --no-first-run \
   --disable-pinch \
-  --overscroll-history-navigation=0 \
-  --disable-translate \
-  --no-default-browser-check
+  --overscroll-history-navigation=0
 
-# Salir del kiosko durante desarrollo
-# Ctrl+W o Alt+F4
+# Cambiar estado desde terminal (con ROS2 corriendo)
+ros2 topic pub /hmi/set_state std_msgs/String "data: 'LISTENING'" --once
+ros2 topic pub /hmi/set_state std_msgs/String "data: 'SPEAKING'" --once
+ros2 topic pub /hmi/set_state std_msgs/String "data: 'APPROACHING'" --once
 
-# Configurar monitor de audio PulseAudio para loopback TTS
-pactl list short sources | grep monitor    # encontrar el monitor source
-# Resultado esperado: "alsa_output.pci-XXXX.analog-stereo.monitor"
-# Usar ese nombre como device en AudioLevelStreamer
+# Simular nivel de audio para testear la onda de boca
+python3 -c "
+import asyncio, websockets, json, math
+async def test():
+    async with websockets.connect('ws://localhost:8000/ws/audio') as ws:
+        for i in range(200):
+            level = abs(math.sin(i*0.3)) * abs(math.sin(i*0.07)) * 0.85
+            await ws.send(json.dumps({'level': round(level,3), 'source': 'tts'}))
+            await asyncio.sleep(0.04)
+asyncio.run(test())
+"
 
-# Verificar RAM con todos los nodos activos
+# Verificar RAM con todos los nodos activos (estimado)
 free -h
-# Esperado con todos corriendo:
-#   ROS2 base:      ~500 MB
-#   RTAB-Map:      ~3-4 GB
-#   kinect2_bridge: ~200 MB
-#   atlas_ros2_node: ~300 MB
-#   Chromium:       ~300 MB
-#   Total estimado: ~5-6 GB de 12 GB disponibles
-```
-
-### Debugging
-
-```bash
-# Ver logs del servidor FastAPI
-uvicorn server:app --host 127.0.0.1 --port 8000 --log-level debug
-
-# Ver mensajes WebSocket en tiempo real (Chrome DevTools)
-# F12 → Network → WS → /ws/state o /ws/audio → Messages
-
-# Verificar que ros2_bridge recibe topics
-ros2 topic echo /hmi/set_state
-ros2 topic echo /hmi/action
-
-# Verificar nodo HMI activo
-ros2 node list | grep hmi
-
-# Test de overlay DISPENSING (sin hardware)
-ros2 topic pub /hmi/set_state std_msgs/String \
-  "data: '{\"state\": \"DISPENSING\", \"params\": {\"medication\": \"Metformina\", \"dose\": 2}}'" \
-  --once
+# ROS2 base:        ~500 MB
+# RTAB-Map:        ~3-4 GB
+# kinect2_bridge:   ~200 MB
+# atlas_ros2_node:  ~300 MB
+# Chromium (HMI):  ~300 MB
+# Total estimado:  ~5-6 GB de 12 GB disponibles
 
 # Monitor de recursos durante demo
-htop   # buscar: uvicorn, chromium-browser, rtabmap, kinect2_bridge
-```
-
-### Estructura de Mensajes WebSocket
-
-```javascript
-// /ws/state — cambio de estado (FastAPI → frontend)
-{
-  "state": "SPEAKING",
-  "params": {
-    "text": "Texto que va a decir Atlas",  // opcional
-    "patient_name": "Juan",               // opcional — para GREETING
-    "medication": "Metformina",           // opcional — para DISPENSING/REMINDER
-    "dose": 2,                            // opcional — para DISPENSING/REMINDER
-    "severity": "vitals"                  // opcional — para ALERT: "vitals"|"emergency"
-  }
-}
-
-// /ws/audio — nivel de amplitud (FastAPI → frontend)
-{
-  "level": 0.742,    // 0.0–1.0 normalizado, EMA aplicado en servidor
-  "source": "tts"    // "tts" = salida TTS | "mic" = entrada micrófono
-}
+htop  # buscar: uvicorn, chromium-browser, rtabmap, kinect2_bridge
 ```
 
 ---
 
-*Para el sistema conversacional Atlas: ver `DOCUMENTACION_CONVERSACIONAL.md`*
-*Para arquitectura ROS2, Nav2 y Kinect: ver `DOCUMENTACION_ROS2.md`*
-*Para contexto general del proyecto: ver `PROYECTO_GENERAL.md`*
+*Para el sistema conversacional Atlas: `DOCUMENTACION_CONVERSACIONAL.md`*
+*Para arquitectura ROS2, Nav2 y Kinect: `DOCUMENTACION_ROS2.md`*
+*Para contexto general del proyecto: `PROYECTO_GENERAL.md`*

@@ -1,81 +1,77 @@
 'use strict';
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  baymax_face.js  —  v3.0
+//  baymax_face.js  —  v4.0
 //  Robot Asistente Médico Meadlese
 //
-//  Anatomía fiel al personaje: dos círculos sólidos + línea horizontal.
-//  Una sola idea visual por estado — elegante, no sobrecargado.
+//  Modo claro: fondo blanco, ojos negros — fiel al personaje original.
+//  Geometría: dos círculos sólidos + línea horizontal. Sin adornos.
 //
 //  Estados implementados:
-//    IDLE      — reposo: respira, parpadea (simple + doble), micro-drift
-//    WAKE      — pulso en línea + bloom + ojos saltones + nod del "¿Sí?"
-//    LISTENING — azul + anillo reactivo al micrófono
-//    THINKING  — ámbar + cabeceo + punto viajero en la línea
-//    SPEAKING  — línea → onda de voz + jiggle en picos de audio
-//    MOVING    — bob de caminata (2 frecuencias) + rotación sutil — "chill"
-//    SEARCHING — barrido lateral + shimmer en la línea + teal si REMINDER activo
-//    APPROACHING — ? flotando → ✓ verde + ojos entrecerrados (reconocido)
-//                             → sacudida horizontal  (no reconocido)
+//    IDLE       — reposo: respira, parpadea (simple + doble), micro-drift
+//    WAKE       — pulso en línea + bloom oscuro + ojos saltones + nod "¿Sí?"
+//    LISTENING  — azul + anillo reactivo al micrófono
+//    THINKING   — ámbar + cabeceo + punto viajero en la línea
+//    SPEAKING   — línea → onda de voz + jiggle en picos de audio
+//    MOVING     — bob de caminata (2 frecuencias) — "chill"
+//    SEARCHING  — barrido lateral + shimmer + teal si REMINDER activo
+//    APPROACHING — scan biométrico vertical → bloom verde (reconocido)
+//                                           → glitch + sacudida (rechazado)
 //
 //  API pública:
-//    setState(state, params)   — cambiar estado
-//    setAudioLevel(0-1)        — nivel TTS
-//    setMicLevel(0-1)          — nivel micrófono
-//    setConfidence(0-1)        — confianza de reconocimiento facial (APPROACHING)
-//    rejectApproach()          — dispara la sacudida de "no"
-//    setReminderActive(bool)   — activa modo teal en SEARCHING
+//    setState(state, params)
+//    setAudioLevel(0–1)       setMicLevel(0–1)
+//    setConfidence(0–1)       rejectApproach()
+//    setReminderActive(bool)
 //
-//  Keyboard (oculto, solo desarrollo):
+//  Keyboard (desarrollo):
 //    1–8 → estados   A → sim audio   D → debug
-//    R   → toggle reminder (en SEARCHING)
-//    C   → ciclar fases seeking → recognized → rejected (en APPROACHING)
+//    R   → reminder (SEARCHING)   C → ciclar fases (APPROACHING)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const BASE_W = 1366;
 
-// ─── Geometría base (px a resolución BASE_W) ─────────────────────────────────
+// ─── Geometría ────────────────────────────────────────────────────────────────
 const G = {
   eyeR:       58,
   eyeSep:    178,
   lineW:       4.5,
-  waveAmp:    58,
+  waveAmp:    52,
   ringGap:    14,
   ringW:       2.5,
   dotR:        7,
   wakePulseR: 260,
   textDy:    195,
-  symbolDy:  110,   // distancia sobre el centro de la cara al símbolo ? / ✓
-  symbolSz:   28,   // tamaño de referencia del símbolo
 };
 
 // ─── Springs ──────────────────────────────────────────────────────────────────
 const SPRING = {
-  EYE_SCALE: { mass: 1.0, stiffness: 180, damping: 14 }, // ojos saltones WAKE
-  JIGGLE:    { mass: 0.6, stiffness: 100, damping: 12 }, // jiggle vertical SPEAKING
-  REJECT:    { mass: 0.8, stiffness: 220, damping:  8 }, // sacudida horizontal APPROACHING
+  EYE_SCALE: { mass: 1.0, stiffness: 180, damping: 14 },
+  JIGGLE:    { mass: 0.6, stiffness: 100, damping: 12 },
+  REJECT:    { mass: 0.8, stiffness: 220, damping:  8 },
 };
 
-// ─── Colores RGB por estado ───────────────────────────────────────────────────
+// ─── Colores — modo claro, oscuros sobre blanco ───────────────────────────────
+// Todos los valores son oscuros porque el fondo es blanco.
 const COL = {
-  IDLE:       { r: 255, g: 255, b: 255 },
-  WAKE:       { r: 255, g: 255, b: 255 },
-  LISTENING:  { r:  75, g: 152, b: 220 },
-  THINKING:   { r: 202, g: 130, b:  30 },
-  SPEAKING:   { r: 255, g: 255, b: 255 },
-  MOVING:     { r: 255, g: 255, b: 255 },
-  SEARCHING:  { r: 255, g: 255, b: 255 },  // sobrescrito por REMINDER
-  APPROACHING:{ r: 255, g: 255, b: 255 },
+  IDLE:       { r:  17, g:  17, b:  17 },   // casi negro
+  WAKE:       { r:  17, g:  17, b:  17 },
+  LISTENING:  { r:  21, g: 101, b: 192 },   // azul profundo
+  THINKING:   { r: 205, g: 105, b:  15 },   // ámbar vivo
+  SPEAKING:   { r:  17, g:  17, b:  17 },
+  MOVING:     { r:  17, g:  17, b:  17 },
+  SEARCHING:  { r:  17, g:  17, b:  17 },
+  APPROACHING:{ r:  17, g:  17, b:  17 },
 };
-const COL_TEAL  = { r: 29, g: 158, b: 117 };
-const COL_GREEN = { r: 29, g: 158, b: 117 };
+const COL_TEAL  = { r: 13, g: 122, b:  90 };
+const COL_GREEN = { r: 13, g: 122, b:  90 };
 
 // ─── Duración de transición por par de estados ────────────────────────────────
 const TRANS_MS = {
   default:                 320,
   'WAKE>LISTENING':        480,
-  'SEARCHING>APPROACHING': 200,  // rápido — robot ve a alguien
-  'APPROACHING>SEARCHING': 380,  // más lento — fade tras el rechazo
+  'SEARCHING>APPROACHING': 200,
+  'APPROACHING>SEARCHING': 380,
 };
 
 
@@ -112,11 +108,11 @@ class BaymaxFace {
     this._prevAudioLevel = 0;
 
     // ── Springs ───────────────────────────────────────────────────────────────
-    this._eyeScaleL = { pos: 1, vel: 0 };  // ojos saltones WAKE
+    this._eyeScaleL = { pos: 1, vel: 0 };
     this._eyeScaleR = { pos: 1, vel: 0 };
-    this._jiggleL   = { pos: 0, vel: 0 };  // jiggle vertical SPEAKING
+    this._jiggleL   = { pos: 0, vel: 0 };
     this._jiggleR   = { pos: 0, vel: 0 };
-    this._rejectSpr = { pos: 0, vel: 0 };  // sacudida horizontal APPROACHING
+    this._rejectSpr = { pos: 0, vel: 0 };
 
     // ── Parpadeo ──────────────────────────────────────────────────────────────
     this._blinkRy     = 1;
@@ -134,7 +130,7 @@ class BaymaxFace {
     this._wakeActive = false;
     this._wakeTs     = 0;
     this._wakeLine   = 0;
-    this._wakeBloom  = 0;
+    this._wakeBloom  = 0;    // 0→1: expansión del bloom oscuro
     this._wakeNodY   = 0;
     this._wakePulses = [];
 
@@ -150,20 +146,22 @@ class BaymaxFace {
     // ── SPEAKING ──────────────────────────────────────────────────────────────
     this._wavePhase = 0;
 
-    // ── MOVING — bob de caminata ──────────────────────────────────────────────
-    this._moveBobT = 0;   // siempre avanza, se modula por blend en render
+    // ── MOVING ────────────────────────────────────────────────────────────────
+    this._moveBobT = 0;
 
     // ── SEARCHING ─────────────────────────────────────────────────────────────
-    this._searchT        = 0;     // siempre avanza
+    this._searchT        = 0;
     this._reminderActive = false;
-    this._reminderBlend  = 0;     // 0=blanco, 1=teal (transición suave)
+    this._reminderBlend  = 0;
 
     // ── APPROACHING ───────────────────────────────────────────────────────────
-    this._approachPhase      = 'seeking';  // 'seeking' | 'recognized' | 'rejected'
-    this._approachConfidence = 0;
-    this._recognizedT        = 0;          // 0→1: animación de reconocimiento
-    this._approachSquint     = 1;          // 1→0.55: entrecierre de ojos
-    this._approachNodY       = 0;          // px: bajada de cabeza al reconocer
+    // Tres fases: curious lean → nod yes → shake no
+    // Todo con la cara inexpresiva — el movimiento lo dice todo.
+    this._approachPhase   = 'seeking';  // 'seeking' | 'recognized' | 'rejected'
+    this._curiousLean     = 0;          // ángulo del cabeceo curioso (rad)
+    this._curiousLeanT    = 0;          // acumulador de fase
+    this._nodSpring       = { pos: 0, vel: 0 };  // spring vertical para el sí
+    this._shakeSpring     = { pos: 0, vel: 0 };  // spring horizontal para el no
 
     // ── Debug ─────────────────────────────────────────────────────────────────
     this._debug = false;
@@ -194,7 +192,7 @@ class BaymaxFace {
         break;
 
       case 'WAKE':
-        this._eyeScaleL.vel += 5.5;   // kick → ojos saltones con rebote
+        this._eyeScaleL.vel += 5.5;
         this._eyeScaleR.vel += 5.5;
         this._wakeActive = true;
         this._wakeTs     = this._lastTs;
@@ -216,13 +214,12 @@ class BaymaxFace {
         break;
 
       case 'APPROACHING':
-        this._approachPhase      = 'seeking';
-        this._approachConfidence = params.confidence ?? 0;
-        this._recognizedT        = 0;
-        this._approachSquint     = 1;
-        this._approachNodY       = 0;
-        this._rejectSpr.pos      = 0;
-        this._rejectSpr.vel      = 0;
+        this._approachPhase    = 'seeking';
+        this._curiousLeanT     = 0;
+        this._nodSpring.pos    = 0;
+        this._nodSpring.vel    = 0;
+        this._shakeSpring.pos  = 0;
+        this._shakeSpring.vel  = 0;
         break;
     }
   }
@@ -230,24 +227,24 @@ class BaymaxFace {
   setAudioLevel(l) { this.audioLevel = Math.max(0, Math.min(1, l)); }
   setMicLevel(l)   { this.micLevel   = Math.max(0, Math.min(1, l)); }
 
-  /** Actualizar confianza del reconocimiento facial en APPROACHING (0–1). */
   setConfidence(val) {
-    this._approachConfidence = Math.max(0, Math.min(1, val));
-    if (this._approachPhase === 'seeking' && this._approachConfidence >= 0.75) {
+    if (this.state !== 'APPROACHING' || this._approachPhase !== 'seeking') return;
+    if (val >= 0.75) {
       this._approachPhase = 'recognized';
-      this._recognizedT   = 0;
+      // Kick hacia arriba — 2-3 nods naturales con spring underdamped
+      this._nodSpring.pos = 0;
+      this._nodSpring.vel = -this._s(420);
     }
   }
 
-  /** Disparar animación de rechazo — robot no reconoció el rostro. */
   rejectApproach() {
     if (this.state !== 'APPROACHING') return;
-    this._approachPhase = 'rejected';
-    this._rejectSpr.pos = 0;
-    this._rejectSpr.vel = this._s(340);  // kick → spring underdamped → 3-4 oscilaciones
+    this._approachPhase   = 'rejected';
+    // Kick lateral — 3 oscilaciones con spring underdamped
+    this._shakeSpring.pos = 0;
+    this._shakeSpring.vel = this._s(380);
   }
 
-  /** Activar/desactivar modo REMINDER en SEARCHING (ojos → teal). */
   setReminderActive(active) { this._reminderActive = !!active; }
 
   start() {
@@ -283,37 +280,33 @@ class BaymaxFace {
 
     const dtS = dt / 1000;
 
-    // Timers globales (siempre avanzan)
     this._breathT     += (dt / 4500) * Math.PI * 2;
     this._driftPhaseX += dt * 0.0002;
     this._driftPhaseY += dt * 0.00025;
     this._moveBobT    += dtS;
     this._searchT     += dtS;
 
-    // Springs — siempre activos
-    this._updateSpring(this._eyeScaleL, 1, SPRING.EYE_SCALE, dtS);
-    this._updateSpring(this._eyeScaleR, 1, SPRING.EYE_SCALE, dtS);
-    this._updateSpring(this._jiggleL,   0, SPRING.JIGGLE,    dtS);
-    this._updateSpring(this._jiggleR,   0, SPRING.JIGGLE,    dtS);
-    this._updateSpring(this._rejectSpr, 0, SPRING.REJECT,    dtS);
+    this._updateSpring(this._eyeScaleL,  1, SPRING.EYE_SCALE, dtS);
+    this._updateSpring(this._eyeScaleR,  1, SPRING.EYE_SCALE, dtS);
+    this._updateSpring(this._jiggleL,    0, SPRING.JIGGLE,    dtS);
+    this._updateSpring(this._jiggleR,    0, SPRING.JIGGLE,    dtS);
+    this._updateSpring(this._nodSpring,  0, { mass: 0.7, stiffness: 140, damping: 9  }, dtS);
+    this._updateSpring(this._shakeSpring,0, { mass: 0.7, stiffness: 160, damping: 8  }, dtS);
 
     this._updateBlink(dt);
     if (this._wakeActive) this._updateWake(ts, dt);
 
-    // LISTENING
     this._ringPulse += dt * 0.0025;
     if (this._ringEntryActive) {
       this._ringEntry = Math.min(1, this._ringEntry + dt / 500);
       if (this._ringEntry >= 1) this._ringEntryActive = false;
     }
 
-    // THINKING
     if (this.state === 'THINKING' || this.prevState === 'THINKING') {
       this._tiltPhase += dt * 0.00078;
       this._dotPhase  += dt * 0.00175;
     }
 
-    // SPEAKING — onda + jiggle en picos de audio
     this._wavePhase += dt * 0.0032;
     if (this.state === 'SPEAKING') {
       const peak = this.audioLevel - this._prevAudioLevel;
@@ -325,18 +318,14 @@ class BaymaxFace {
     }
     this._prevAudioLevel = this.audioLevel;
 
-    // SEARCHING — blend de color hacia teal si REMINDER activo
     const remTarget      = this._reminderActive ? 1 : 0;
     this._reminderBlend += (remTarget - this._reminderBlend) * Math.min(1, dt * 0.003);
 
-    // APPROACHING — animación de reconocimiento (fase 'recognized')
-    if (this._approachPhase === 'recognized') {
-      this._recognizedT    = Math.min(1, this._recognizedT + dt / 600);
-      this._approachSquint = 1 - this._recognizedT * 0.45;
-      this._approachNodY   = this._s(12) * this._easeOutCubic(this._recognizedT);
+    // APPROACHING — lean curioso solo en seeking
+    if (this.state === 'APPROACHING' && this._approachPhase === 'seeking') {
+      this._curiousLeanT += dtS;
     }
 
-    // Audio simulado
     if (this.simAudio && this.state === 'SPEAKING') {
       this._simPhase += dt * 0.001;
       const env   = Math.max(0, Math.sin(this._simPhase * 2.3) * 0.5 + 0.55);
@@ -382,24 +371,24 @@ class BaymaxFace {
   }
 
   _updateWake(ts, dt) {
-    const elapsed = ts - this._wakeTs;
-    this._wakeLine = Math.min(1, elapsed / 220);
-    if (elapsed >= 180) {
-      const t = Math.min(1, (elapsed - 180) / 300);
+    const e = ts - this._wakeTs;
+    this._wakeLine = Math.min(1, e / 220);
+    if (e >= 180) {
+      const t = Math.min(1, (e - 180) / 300);
       this._wakeBloom = t < 0.35 ? t / 0.35 : 1 - (t - 0.35) / 0.65;
     }
-    if (elapsed >= 200 && this._wakePulses.length === 0) {
+    if (e >= 200 && this._wakePulses.length === 0) {
       this._wakePulses = [
         { offset:   0, maxR: G.wakePulseR * 0.8 },
         { offset: 180, maxR: G.wakePulseR * 0.5 },
       ];
     }
     const NOD_PX = 18;
-    if (elapsed <= 600) {
-      const t = elapsed / 600;
+    if (e <= 600) {
+      const t = e / 600;
       this._wakeNodY = -this._s(NOD_PX) * (1 - Math.pow(1 - t, 4));
-    } else if (elapsed <= 1200) {
-      const t = (elapsed - 600) / 600;
+    } else if (e <= 1200) {
+      const t = (e - 600) / 600;
       this._wakeNodY = -this._s(NOD_PX) * (1 - this._easeInOutCubic(t));
     } else {
       this._wakeNodY = 0; this._wakeBloom = 0;
@@ -415,56 +404,63 @@ class BaymaxFace {
   _render(ts) {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    ctx.fillStyle = '#000';
+
+    // ── Fondo blanco ──────────────────────────────────────────────────────────
+    ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
     const t = this._easeInOutCubic(this.transT);
 
-    // ── Color base — con teal de REMINDER en SEARCHING ────────────────────────
+    // Color base
     let baseCol = this._lerpRGB(COL[this.prevState] ?? COL.IDLE, COL[this.state] ?? COL.IDLE, t);
     if (this.state === 'SEARCHING' || this.prevState === 'SEARCHING') {
-      const tealBlend = this._reminderBlend *
-        ((this.state === 'SEARCHING') ? t : (1 - t));
-      baseCol = this._lerpRGB(baseCol, COL_TEAL, tealBlend);
+      const tb = this._reminderBlend * ((this.state === 'SEARCHING') ? t : (1 - t));
+      baseCol = this._lerpRGB(baseCol, COL_TEAL, tb);
     }
     const colStr  = `rgb(${baseCol.r},${baseCol.g},${baseCol.b})`;
-    const glowStr = `rgba(${baseCol.r},${baseCol.g},${baseCol.b},`;
+    const alphaStr = (a) => `rgba(${baseCol.r},${baseCol.g},${baseCol.b},${a})`;
 
     const breathRy = 1 + Math.sin(this._breathT) * 0.015;
 
     // Cabeceo THINKING
-    const tiltBlend = (this.state === 'THINKING') ? t : (this.prevState === 'THINKING' ? 1 - t : 0);
+    const tiltBlend = (this.state==='THINKING') ? t : (this.prevState==='THINKING' ? 1-t : 0);
     const tiltAngle = Math.sin(this._tiltPhase) * 0.11 * tiltBlend;
 
-    // Bob de caminata MOVING (dos frecuencias superpuestas)
-    const movingBlend = (this.state === 'MOVING') ? t : (this.prevState === 'MOVING' ? 1 - t : 0);
-    const slowBob  = Math.sin(this._moveBobT * 2 * Math.PI * 1.2);
-    const fastBob  = Math.sin(this._moveBobT * 2 * Math.PI * 2.4);
-    const bobY     = this._s(slowBob * 6 + fastBob * 2.5) * movingBlend;
-    const bobRot   = slowBob * 0.022 * movingBlend;
+    // Bob MOVING
+    const movingBlend = (this.state==='MOVING') ? t : (this.prevState==='MOVING' ? 1-t : 0);
+    const slowBob = Math.sin(this._moveBobT * 2 * Math.PI * 1.2);
+    const fastBob = Math.sin(this._moveBobT * 2 * Math.PI * 2.4);
+    const bobY    = this._s(slowBob * 6 + fastBob * 2.5) * movingBlend;
+    const bobRot  = slowBob * 0.022 * movingBlend;
 
-    // Micro-drift IDLE
-    const driftBlend = (this.state === 'IDLE') ? t : (this.prevState === 'IDLE' ? 1 - t : 0);
+    // Drift IDLE
+    const driftBlend = (this.state==='IDLE') ? t : (this.prevState==='IDLE' ? 1-t : 0);
     const driftX = Math.sin(this._driftPhaseX) * this._s(1.5) * driftBlend;
     const driftY = Math.cos(this._driftPhaseY) * this._s(1.5) * driftBlend;
 
-    // Barrido lateral SEARCHING
-    const searchBlend = (this.state === 'SEARCHING') ? t : (this.prevState === 'SEARCHING' ? 1 - t : 0);
+    // Barrido SEARCHING
+    const searchBlend = (this.state==='SEARCHING') ? t : (this.prevState==='SEARCHING' ? 1-t : 0);
     const sweepX = Math.sin(this._searchT * 2 * Math.PI / 2.5) * this._s(42) * searchBlend;
 
-    // Sacudida + bajada de cabeza APPROACHING
-    const approachBlend = (this.state === 'APPROACHING') ? t : (this.prevState === 'APPROACHING' ? 1 - t : 0);
-    const rejectX    = this._rejectSpr.pos * approachBlend;
-    const approachY  = this._approachNodY  * approachBlend;
-    const squintMult = (this.state === 'APPROACHING')
-      ? 1 - (1 - this._approachSquint) * t
-      : 1;
+    // Lean curioso APPROACHING (seeking) — inclinación sinusoidal lenta
+    // Nod yes — spring vertical
+    // Shake no — spring horizontal
+    const approachBlend = (this.state==='APPROACHING') ? t : (this.prevState==='APPROACHING' ? 1-t : 0);
+
+    // Lean: oscilación sinusoidal de ~8° con período 2.2 s, solo en seeking
+    const leanAngle = Math.sin(this._curiousLeanT * 2 * Math.PI / 2.2) * 0.14 * approachBlend
+                    * (this._approachPhase === 'seeking' ? 1 : 0);
+
+    // Nod: desplazamiento vertical del spring (positivo = abajo)
+    const nodY   = this._nodSpring.pos   * approachBlend;
+
+    // Shake: desplazamiento horizontal del spring
+    const shakeX = this._shakeSpring.pos * approachBlend;
 
     ctx.save();
-    ctx.translate(this.W2 + rejectX, this.H2 + this._wakeNodY + bobY + approachY);
-    ctx.rotate(tiltAngle + bobRot);
+    ctx.translate(this.W2 + shakeX, this.H2 + this._wakeNodY + bobY + nodY);
+    ctx.rotate(tiltAngle + bobRot + leanAngle);
 
-    // Posición de los ojos: centro ± sep + drift + sweep
     const lx = -this._s(G.eyeSep) + driftX + sweepX;
     const rx =  this._s(G.eyeSep) + driftX + sweepX;
     const r  =  this._s(G.eyeR);
@@ -472,48 +468,42 @@ class BaymaxFace {
     const rR = r * Math.max(0.1, this._eyeScaleR.pos);
 
     // Anillos LISTENING
-    const ringBlend = (this.state === 'LISTENING') ? t : (this.prevState === 'LISTENING' ? 1 - t : 0);
+    const ringBlend = (this.state==='LISTENING') ? t : (this.prevState==='LISTENING' ? 1-t : 0);
     if (ringBlend > 0.01) {
-      this._drawRing(lx, driftY, rL, ringBlend, baseCol, glowStr);
-      this._drawRing(rx, driftY, rR, ringBlend, baseCol, glowStr);
+      this._drawRing(lx, driftY, rL, ringBlend, baseCol, alphaStr);
+      this._drawRing(rx, driftY, rR, ringBlend, baseCol, alphaStr);
     }
 
-    // Línea / onda SPEAKING
-    const waveBlend = (this.state === 'SPEAKING') ? t : (this.prevState === 'SPEAKING' ? 1 - t : 0);
-    this._drawLineOrWave(lx, rx, driftY, rL, rR, colStr, glowStr, waveBlend);
+    // Línea / onda
+    const waveBlend = (this.state==='SPEAKING') ? t : (this.prevState==='SPEAKING' ? 1-t : 0);
+    this._drawLineOrWave(lx, rx, driftY, rL, rR, colStr, alphaStr, waveBlend);
 
     // Pulso WAKE sobre la línea
     if (this._wakeActive && this._wakeLine < 1)
-      this._drawLinePulse(lx, rx, driftY, rL, rR, this._wakeLine);
+      this._drawLinePulse(lx, rx, driftY, rL, rR, this._wakeLine, baseCol);
 
-    // Shimmer SEARCHING sobre la línea
+    // Shimmer SEARCHING
     if (searchBlend > 0.01)
-      this._drawLineShimmer(lx, rx, driftY, rL, rR, searchBlend);
+      this._drawLineShimmer(lx, rx, driftY, rL, rR, searchBlend, baseCol);
 
-    // Círculos (bloom del WAKE se tiñe de azul al entrar en LISTENING)
-    const bloomGlow = (this.state === 'LISTENING' && this._wakeBloom > 0)
-      ? `rgba(${Math.round(255-(255-75)*t)},${Math.round(255-(255-152)*t)},${Math.round(255-(255-220)*t)},`
-      : glowStr;
-    this._drawCircle(lx, driftY, rL, breathRy * squintMult, this._jiggleL.pos, colStr, bloomGlow, this._wakeBloom);
-    this._drawCircle(rx, driftY, rR, breathRy * squintMult, this._jiggleR.pos, colStr, bloomGlow, this._wakeBloom);
+    this._drawCircle(lx, driftY, rL, breathRy, this._jiggleL.pos,
+                     colStr, alphaStr, this._wakeBloom);
+    this._drawCircle(rx, driftY, rR, breathRy, this._jiggleR.pos,
+                     colStr, alphaStr, this._wakeBloom);
 
     // Punto viajero THINKING
-    const dotBlend = (this.state === 'THINKING') ? t : (this.prevState === 'THINKING' ? 1 - t : 0);
+    const dotBlend = (this.state==='THINKING') ? t : (this.prevState==='THINKING' ? 1-t : 0);
     if (dotBlend > 0.01)
       this._drawTravelingDot(lx, rx, driftY, rL, rR, dotBlend, baseCol);
 
-    // Símbolo APPROACHING (? → ✓)
-    if (approachBlend > 0.01)
-      this._drawApproachSymbol(driftY, approachBlend);
-
     // Texto "Escuchando..."
-    const textBlend = (this.state === 'LISTENING') ? t : (this.prevState === 'LISTENING' ? 1 - t : 0);
+    const textBlend = (this.state==='LISTENING') ? t : (this.prevState==='LISTENING' ? 1-t : 0);
     if (textBlend > 0.01)
       this._drawListeningText(textBlend, baseCol);
 
     ctx.restore();
 
-    // Anillos expansivos WAKE (coordenadas absolutas)
+    // Pulsos WAKE (coordenadas absolutas)
     if (this._wakePulses.length > 0) this._drawWakePulses(ts);
 
     if (this._debug) this._drawDebug();
@@ -524,37 +514,41 @@ class BaymaxFace {
   //  MÉTODOS DE DIBUJO
   // ═══════════════════════════════════════════════════════════════════════════
 
-  _drawCircle(x, y, r, breathRy, jiggle, colStr, glowStr, bloom = 0) {
+  _drawCircle(x, y, r, breathRy, jiggle, colStr, alphaStr, bloom = 0) {
     if (r < 1) return;
     const ctx   = this.ctx;
     const ryEff = r * Math.max(0.02, this._blinkRy * breathRy) + jiggle;
     if (ryEff < 0.5) return;
 
     ctx.save();
-    ctx.shadowBlur  = this._s(24 + bloom * 55);
-    ctx.shadowColor = bloom > 0.01
-      ? `rgba(255,255,255,${0.4 + bloom * 0.5})`
-      : glowStr + '0.4)';
+    // Sombra sutil — en modo claro, los ojos se elevan del fondo
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = this._s(2 + bloom * 4);
+    ctx.shadowBlur    = this._s(8 + bloom * 20);
+    ctx.shadowColor   = `rgba(0,0,0,${0.12 + bloom * 0.18})`;
+
     ctx.beginPath();
     ctx.ellipse(x, y, r, ryEff, 0, 0, Math.PI * 2);
     ctx.fillStyle = colStr;
     ctx.fill();
-    ctx.shadowBlur = 0;
+
+    // Highlight sutil: reflejo muy tenue en la esquina superior izquierda
+    ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
     ctx.beginPath();
     ctx.ellipse(x, y, r, ryEff, 0, 0, Math.PI * 2);
     ctx.clip();
-    const hx   = x - r * 0.26;
-    const hy   = y - ryEff * 0.28;
-    const hGrd = ctx.createRadialGradient(hx, hy, 0, hx, hy, r * 0.55);
-    hGrd.addColorStop(0,   `rgba(255,255,255,${0.5 + bloom * 0.4})`);
-    hGrd.addColorStop(0.5, `rgba(255,255,255,${0.12 + bloom * 0.2})`);
+    const hGrd = ctx.createRadialGradient(
+      x - r * 0.28, y - ryEff * 0.32, 0,
+      x - r * 0.28, y - ryEff * 0.32, r * 0.5
+    );
+    hGrd.addColorStop(0,   'rgba(255,255,255,0.18)');
     hGrd.addColorStop(1,   'rgba(255,255,255,0)');
     ctx.fillStyle = hGrd;
     ctx.fillRect(x - r, y - ryEff, r * 2, ryEff * 2);
     ctx.restore();
   }
 
-  _drawLineOrWave(lx, rx, y, rL, rR, colStr, glowStr, waveBlend) {
+  _drawLineOrWave(lx, rx, y, rL, rR, colStr, alphaStr, waveBlend) {
     const ctx = this.ctx;
     const x1 = lx + rL, x2 = rx - rR;
     if (x2 <= x1 + 2) return;
@@ -564,8 +558,9 @@ class BaymaxFace {
     ctx.strokeStyle = colStr;
     ctx.lineWidth   = this._s(G.lineW);
     ctx.lineCap = ctx.lineJoin = 'round';
-    ctx.shadowBlur  = this._s(12);
-    ctx.shadowColor = glowStr + '0.45)';
+    ctx.shadowBlur    = this._s(3);
+    ctx.shadowColor   = alphaStr(0.12);
+    ctx.shadowOffsetY = this._s(1);
     ctx.beginPath();
     for (let i = 0; i <= 140; i++) {
       const f  = i / 140;
@@ -577,54 +572,43 @@ class BaymaxFace {
     ctx.restore();
   }
 
-  _drawLinePulse(lx, rx, y, rL, rR, progress) {
+  _drawLinePulse(lx, rx, y, rL, rR, progress, col) {
     const ctx  = this.ctx;
     const x1 = lx + rL, x2 = rx - rR;
     const mid = (x1 + x2) / 2, half = (x2 - x1) / 2;
     const reachL = mid - half * progress;
     const reachR = mid + half * progress;
+
+    // En modo claro: el pulso es oscuro con sombra sutil
     const makeGrad = (x0, x1) => {
       const g = ctx.createLinearGradient(x0, y, x1, y);
-      g.addColorStop(0,   'rgba(255,255,255,0)');
-      g.addColorStop(0.6, 'rgba(255,255,255,0.3)');
-      g.addColorStop(1,   'rgba(255,255,255,0.9)');
+      g.addColorStop(0,   `rgba(${col.r},${col.g},${col.b},0)`);
+      g.addColorStop(0.5, `rgba(${col.r},${col.g},${col.b},0.35)`);
+      g.addColorStop(1,   `rgba(${col.r},${col.g},${col.b},0.9)`);
       return g;
     };
     ctx.save();
-    ctx.lineWidth = this._s(G.lineW * 1.8);
-    ctx.lineCap   = 'round';
-    ctx.shadowBlur  = this._s(16);
-    ctx.shadowColor = 'rgba(255,255,255,0.8)';
+    ctx.lineWidth   = this._s(G.lineW * 1.8);
+    ctx.lineCap     = 'round';
+    ctx.shadowBlur  = this._s(8);
+    ctx.shadowColor = `rgba(${col.r},${col.g},${col.b},0.25)`;
     ctx.beginPath(); ctx.moveTo(mid, y); ctx.lineTo(reachL, y);
     ctx.strokeStyle = makeGrad(mid, reachL); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(mid, y); ctx.lineTo(reachR, y);
     ctx.strokeStyle = makeGrad(mid, reachR); ctx.stroke();
-    if (progress > 0.88) {
-      const a = (progress - 0.88) / 0.12;
-      ctx.fillStyle = `rgba(255,255,255,${a * 0.9})`;
-      ctx.shadowColor = 'rgba(255,255,255,0.9)';
-      ctx.shadowBlur  = this._s(20);
-      [reachL, reachR].forEach(px => {
-        ctx.beginPath(); ctx.arc(px, y, this._s(5), 0, Math.PI * 2); ctx.fill();
-      });
-    }
     ctx.restore();
   }
 
-  /**
-   * Shimmer: punto brillante que recorre la línea de conexión. (SEARCHING)
-   * Período: 1.8 s — efecto de ping de sonar.
-   */
-  _drawLineShimmer(lx, rx, y, rL, rR, blend) {
+  _drawLineShimmer(lx, rx, y, rL, rR, blend, col) {
     const ctx = this.ctx;
     const x1  = lx + rL, x2 = rx - rR;
     if (x2 <= x1) return;
     const shimX = x1 + ((this._searchT / 1.8) % 1) * (x2 - x1);
     ctx.save();
     const grad = ctx.createRadialGradient(shimX, y, 0, shimX, y, this._s(28));
-    grad.addColorStop(0,    `rgba(255,255,255,${blend * 0.75})`);
-    grad.addColorStop(0.35, `rgba(255,255,255,${blend * 0.18})`);
-    grad.addColorStop(1,    'rgba(255,255,255,0)');
+    grad.addColorStop(0,    `rgba(${col.r},${col.g},${col.b},${blend * 0.55})`);
+    grad.addColorStop(0.4,  `rgba(${col.r},${col.g},${col.b},${blend * 0.12})`);
+    grad.addColorStop(1,    `rgba(${col.r},${col.g},${col.b},0)`);
     ctx.fillStyle = grad;
     ctx.beginPath();
     ctx.ellipse(shimX, y, this._s(28), this._s(7), 0, 0, Math.PI * 2);
@@ -632,7 +616,7 @@ class BaymaxFace {
     ctx.restore();
   }
 
-  _drawRing(x, y, circR, blend, col, glowStr) {
+  _drawRing(x, y, circR, blend, col, alphaStr) {
     const ctx = this.ctx;
     let extraR = 0, entryOpacity = 1;
     if (this._ringEntryActive) {
@@ -645,10 +629,10 @@ class BaymaxFace {
     ctx.save();
     ctx.beginPath();
     ctx.arc(x, y, rr, 0, Math.PI * 2);
-    ctx.strokeStyle = `rgba(${col.r},${col.g},${col.b},${pulse * (0.28 + this.smoothMic * 0.52)})`;
+    ctx.strokeStyle = alphaStr(pulse * (0.32 + this.smoothMic * 0.45));
     ctx.lineWidth   = this._s(G.ringW);
-    ctx.shadowBlur  = this._s(12);
-    ctx.shadowColor = glowStr + `${pulse * 0.45})`;
+    ctx.shadowBlur  = this._s(8);
+    ctx.shadowColor = alphaStr(pulse * 0.2);
     ctx.stroke();
     ctx.restore();
   }
@@ -662,78 +646,9 @@ class BaymaxFace {
     ctx.beginPath();
     ctx.arc(px, y, this._s(G.dotR), 0, Math.PI * 2);
     ctx.fillStyle   = `rgba(${col.r},${col.g},${col.b},${blend * 0.88})`;
-    ctx.shadowBlur  = this._s(14);
-    ctx.shadowColor = `rgba(${col.r},${col.g},${col.b},${blend * 0.55})`;
+    ctx.shadowBlur  = this._s(6);
+    ctx.shadowColor = `rgba(${col.r},${col.g},${col.b},${blend * 0.25})`;
     ctx.fill();
-    ctx.restore();
-  }
-
-  /**
-   * Símbolo flotante encima de la cara. (APPROACHING)
-   * ? se desvanece con scale-down mientras ✓ aparece con scale-up.
-   * _recognizedT: 0 = solo ?, 1 = solo ✓.
-   */
-  _drawApproachSymbol(driftY, blend) {
-    const cy = driftY - this._s(G.symbolDy);
-    const sz = this._s(G.symbolSz);
-    const rt = this._recognizedT;
-
-    if (rt < 0.98) {
-      const qAlpha = (1 - this._easeInOutCubic(rt)) * blend;
-      this._drawQuestionMark(0, cy, sz * (1 - rt * 0.25), qAlpha);
-    }
-    if (rt > 0.02) {
-      const cAlpha = this._easeOutCubic(rt) * blend;
-      this._drawCheckMark(0, cy, sz * (0.5 + rt * 0.5), cAlpha);
-    }
-  }
-
-  /** Signo de interrogación como Canvas path. Centro (cx, cy), tamaño sz. */
-  _drawQuestionMark(cx, cy, sz, alpha) {
-    if (alpha < 0.01 || sz < 1) return;
-    const ctx = this.ctx;
-    ctx.save();
-    ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
-    ctx.fillStyle   = `rgba(255,255,255,${alpha})`;
-    ctx.lineWidth   = sz * 0.18;
-    ctx.lineCap     = 'round';
-    ctx.shadowBlur  = sz * 0.4;
-    ctx.shadowColor = `rgba(255,255,255,${alpha * 0.4})`;
-
-    // Arco superior + cola curvada hacia el centro
-    ctx.beginPath();
-    ctx.arc(cx, cy - sz * 0.38, sz * 0.28, Math.PI * 0.5, Math.PI * 2.15, false);
-    ctx.bezierCurveTo(
-      cx + sz * 0.30, cy - sz * 0.06,
-      cx + sz * 0.08, cy + sz * 0.06,
-      cx,             cy + sz * 0.12
-    );
-    ctx.stroke();
-
-    // Punto inferior
-    ctx.shadowBlur = 0;
-    ctx.beginPath();
-    ctx.arc(cx, cy + sz * 0.42, sz * 0.10, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-  }
-
-  /** Checkmark en verde. Centro (cx, cy), tamaño sz. */
-  _drawCheckMark(cx, cy, sz, alpha) {
-    if (alpha < 0.01 || sz < 1) return;
-    const ctx = this.ctx;
-    ctx.save();
-    ctx.strokeStyle = `rgba(${COL_GREEN.r},${COL_GREEN.g},${COL_GREEN.b},${alpha})`;
-    ctx.lineWidth   = sz * 0.22;
-    ctx.lineCap     = 'round';
-    ctx.lineJoin    = 'round';
-    ctx.shadowBlur  = sz * 0.55;
-    ctx.shadowColor = `rgba(${COL_GREEN.r},${COL_GREEN.g},${COL_GREEN.b},${alpha * 0.6})`;
-    ctx.beginPath();
-    ctx.moveTo(cx - sz * 0.42, cy + sz * 0.02);
-    ctx.lineTo(cx - sz * 0.06, cy + sz * 0.40);
-    ctx.lineTo(cx + sz * 0.48, cy - sz * 0.38);
-    ctx.stroke();
     ctx.restore();
   }
 
@@ -761,12 +676,12 @@ class BaymaxFace {
       if (t >= 1) return;
       alive = true;
       const radius  = this._s(G.eyeR + 8 + t * (p.maxR - G.eyeR - 8));
-      const opacity = Math.pow(1 - t, 1.8) * 0.28;
+      const opacity = Math.pow(1 - t, 1.8) * 0.18;  // más sutil en modo claro
       [lx, rx].forEach(ex => {
         ctx.save();
         ctx.beginPath();
         ctx.arc(ex, this.H2, radius, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(255,255,255,${opacity})`;
+        ctx.strokeStyle = `rgba(17,17,17,${opacity})`;
         ctx.lineWidth   = this._s(1.6);
         ctx.stroke();
         ctx.restore();
@@ -780,12 +695,12 @@ class BaymaxFace {
     const W = this.canvas.width, H = this.canvas.height;
     ctx.save();
     ctx.font      = `${this._s(11)}px monospace`;
-    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
     ctx.textAlign = 'right';
     ctx.fillText(`${this.prevState} → ${this.state}  t=${this.transT.toFixed(2)}`, W-16, H-68);
     ctx.fillText(`audio ${this.smoothAudio.toFixed(2)}  mic ${this.smoothMic.toFixed(2)}  sim ${this.simAudio?'ON':'off'}`, W-16, H-51);
     ctx.fillText(`blink:${this._blinkPhase}  ry=${this._blinkRy.toFixed(2)}  scaleL=${this._eyeScaleL.pos.toFixed(3)}`, W-16, H-34);
-    ctx.fillText(`approach:${this._approachPhase}  conf=${this._approachConfidence.toFixed(2)}  recT=${this._recognizedT.toFixed(2)}  rejectX=${this._rejectSpr.pos.toFixed(1)}`, W-16, H-17);
+    ctx.fillText(`approach:${this._approachPhase}  lean=${this._curiousLeanT.toFixed(1)}  nodY=${this._nodSpring.pos.toFixed(1)}  shakeX=${this._shakeSpring.pos.toFixed(1)}`, W-16, H-17);
     ctx.restore();
   }
 
@@ -808,11 +723,15 @@ class BaymaxFace {
     this.H2 = this.canvas.height / 2;
   }
 
-  _s(v)       { return v * this.S; }
-  _rand(a, b) { return a + Math.random() * (b - a); }
+  _s(v)         { return v * this.S; }
+  _rand(a, b)   { return a + Math.random() * (b - a); }
+  _lerp(a, b, t){ return a + (b - a) * t; }
+
   _easeInOutCubic(t) { return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2; }
+  _easeInOutSine(t)  { return -(Math.cos(Math.PI * t) - 1) / 2; }
   _easeInQuad(t)     { return t * t; }
   _easeOutCubic(t)   { return 1 - Math.pow(1 - t, 3); }
+
   _lerpRGB(a, b, t) {
     return {
       r: Math.round(a.r + (b.r - a.r) * t),
@@ -828,21 +747,16 @@ class BaymaxFace {
     };
     window.addEventListener('keydown', e => {
       if (MAP[e.key]) this.setState(MAP[e.key]);
-
       if (e.key==='a'||e.key==='A') {
         this.simAudio = !this.simAudio;
         console.log('[BaymaxFace] sim audio:', this.simAudio ? 'ON' : 'off');
       }
       if (e.key==='d'||e.key==='D') this._debug = !this._debug;
-
-      // SEARCHING: toggle reminder
-      if ((e.key==='r'||e.key==='R') && this.state === 'SEARCHING') {
+      if ((e.key==='r'||e.key==='R') && this.state==='SEARCHING') {
         this.setReminderActive(!this._reminderActive);
         console.log('[BaymaxFace] reminder:', this._reminderActive ? 'ON' : 'off');
       }
-
-      // APPROACHING: ciclar fases para testear
-      if ((e.key==='c'||e.key==='C') && this.state === 'APPROACHING') {
+      if ((e.key==='c'||e.key==='C') && this.state==='APPROACHING') {
         if (this._approachPhase === 'seeking') {
           this.setConfidence(0.85);
           console.log('[BaymaxFace] → recognized');
